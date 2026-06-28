@@ -44,9 +44,14 @@ async function encodeChunked(src, work, p, opts, hasAudio) {
 
   // 2. Encode each segment to AV1 video-only, in parallel through the shared pool.
   const encSegs = srcSegs.map((_, i) => join(work, `enc_${String(i).padStart(4, "0")}.mp4`));
-  await Promise.all(srcSegs.map((s, i) =>
-    opts.sem.run(() => runFfmpeg(segmentEncodeArgs(s, encSegs[i], p, opts.cap1080), opts.onTime)),
-  ));
+  const ac = new AbortController();
+  try {
+    await Promise.all(srcSegs.map((s, i) =>
+      opts.sem.run(() => runFfmpeg(segmentEncodeArgs(s, encSegs[i], p, opts.cap1080), { signal: ac.signal }))));
+  } catch (e) {
+    ac.abort();
+    throw e;
+  }
 
   // 3. Concat-copy the encoded video segments.
   const listFile = join(work, "list.txt");
@@ -79,7 +84,7 @@ export async function convertOne(src, dst, presetName, opts) {
     } else {
       fMp4 = join(work, "out.mp4");
       await opts.sem.run(() =>
-        runFfmpeg(wholeFileArgs(src, fMp4, p, opts.cap1080, hasAudio), opts.onTime),
+        runFfmpeg(wholeFileArgs(src, fMp4, p, opts.cap1080, hasAudio)),
       );
     }
     const { outBytes } = await wrapTinv(fMp4, src, srcBytes, dst);

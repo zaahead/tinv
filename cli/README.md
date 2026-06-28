@@ -17,6 +17,10 @@ Options:
 
 Small files encode whole; large files are copy-split at keyframes, encoded in
 parallel, concat-copied, muxed with a single Opus track, and fragmented.
+The lightweight copy/split/concat and the single audio-encode passes run outside
+the `--jobs` cap, so a chunking file may briefly run slightly more than `--jobs`
+ffmpeg processes (all but the segment encodes are `-c copy` or a light Opus pass,
+so the impact is negligible).
 
 ## Tuning for your machine
 

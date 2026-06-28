@@ -121,14 +121,17 @@ export function muxFragmentArgs(videoPath, audioPath, dst) {
   return ["-y", ...inputs, "-c", "copy", ...FRAG, "-f", "mp4", dst];
 }
 
-export function runFfmpeg(args, onTime) {
+export function runFfmpeg(args, { signal } = {}) {
   return new Promise((resolve, reject) => {
     const proc = spawn(FFMPEG, args);
-    const re = /time=(\d+):(\d+):(\d+)\.(\d+)/;
-    proc.stderr.on("data", (chunk) => {
-      const m = String(chunk).match(re);
-      if (m && onTime) onTime(+m[1] * 3600 + +m[2] * 60 + +m[3]);
-    });
+    if (signal) {
+      if (signal.aborted) {
+        proc.kill("SIGTERM");
+      } else {
+        signal.addEventListener("abort", () => proc.kill("SIGTERM"), { once: true });
+      }
+    }
+    proc.stderr.on("data", () => {});
     proc.on("error", reject);
     proc.on("exit", (code) => {
       code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}: ${args.join(" ")}`));
