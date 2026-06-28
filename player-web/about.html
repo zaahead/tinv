@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About · tinv</title>
+  <meta name="theme-color" content="#000000" />
+  <link rel="icon" href="icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #000; --panel: #0d0d0d; --border: rgba(255,255,255,.12);
+      --text: #fff; --dim: rgba(255,255,255,.6); --faint: rgba(255,255,255,.4);
+      --mono: "JetBrains Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text);
+      font-family: "Inter", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased; line-height: 1.6; }
+    .header {
+      display: flex; align-items: center; gap: 16px;
+      padding: 14px 22px; border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--text); }
+    .logo { width: 22px; height: 22px; display: block; }
+    .brand b { font-weight: 700; letter-spacing: -.03em; font-size: 17px; }
+    .back { margin-left: auto; font-family: var(--mono); font-size: 11px;
+      letter-spacing: .06em; text-transform: uppercase; color: var(--faint);
+      text-decoration: none; }
+    .back:hover { color: var(--text); }
+    main { max-width: 680px; margin: 0 auto; padding: 64px 24px 100px; }
+    .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+      text-transform: uppercase; color: var(--faint); display: block; margin-bottom: 18px; }
+    h1 { font-size: clamp(34px, 6vw, 56px); line-height: 1.05; font-weight: 700;
+      letter-spacing: -.035em; margin: 0 0 24px; }
+    .lede { font-size: 18px; color: var(--dim); margin: 0 0 40px; max-width: 52ch; }
+    h2 { font-size: 18px; margin: 40px 0 10px; }
+    p { color: var(--dim); margin: 0 0 14px; max-width: 60ch; }
+    code { font-family: var(--mono); font-size: .86em; color: var(--text);
+      border: 1px solid var(--border); padding: 1px 5px; }
+    .specs { margin: 32px 0; border-top: 1px solid var(--border); }
+    .specs > div { display: flex; justify-content: space-between; gap: 16px;
+      padding: 13px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+    .specs dt { font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--faint); margin: 0; }
+    .specs dd { margin: 0; font-family: var(--mono); font-size: 13px; color: var(--text); }
+    .cta { display: inline-block; margin-top: 12px; font-weight: 600;
+      color: #000; background: #fff; padding: 12px 20px; text-decoration: none; }
+    a.inline { color: var(--text); }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <a class="brand" href="/">
+      <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" fill="#fff" />
+        <polygon fill="#000" points="80 40 60 40 60 30 40 30 40 20 20 20 20 40 20 60 20 80 40 80 40 70 60 70 60 60 80 60 80 40" />
+      </svg>
+      <b>tinv</b>
+    </a>
+    <a class="back" href="/">← Back to app</a>
+  </header>
+
+  <main>
+    <span class="eyebrow">About</span>
+    <h1>Tiny videos, played anywhere.</h1>
+    <p class="lede">
+      tinv compresses ordinary videos into <code>.tinv</code> files that are a
+      fraction of the original size, then plays them back in your browser.
+    </p>
+
+    <h2>What is a .tinv file?</h2>
+    <p>
+      A <code>.tinv</code> is an ordinary video re-encoded to be far smaller,
+      typically 10 to 50 times smaller than the source, while staying
+      watchable.
+    </p>
+    <p>
+      It is wrapped in a small container, so a <code>.tinv</code> only opens in
+      the tinv player, not in a plain video player. Metadata such as the title
+      and compression ratio is stored inside the file itself.
+    </p>
+
+    <h2>Open source</h2>
+    <p>
+      tinv is open source. The player, converter, and file format are all
+      public, so you can read exactly how it works or run it yourself.
+      <a class="inline" href="https://github.com/">View it on GitHub</a>.
+    </p>
+
+    <h2>Convert</h2>
+    <p>
+      The <a class="inline" href="/">Convert</a> tab compresses short videos
+      right in your browser, with nothing uploaded. For large recordings, a
+      desktop tool does the same job much faster using native encoding.
+    </p>
+
+    <h2>Play</h2>
+    <p>
+      Open a <code>.tinv</code> in the player, or share a link to one hosted
+      online. There is no account, no tracking, and playback works offline once
+      the app is loaded.
+    </p>
+
+    <dl class="specs">
+      <div><dt>Typical size</dt><dd>10–50× smaller</dd></div>
+      <div><dt>Privacy</dt><dd>On-device</dd></div>
+      <div><dt>Source</dt><dd>Open source</dd></div>
+      <div><dt>Install</dt><dd>Not required</dd></div>
+    </dl>
+
+    <a class="cta" href="/">Open the app</a>
+  </main>
+</body>
+</html>

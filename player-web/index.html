@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>tinv — tiny video converter &amp; player</title>
+  <meta name="description" content="Compress any video to a tiny .tinv file and play it in your browser. 10–50× smaller, AV1 encoded, nothing uploaded. Open source." />
+  <link rel="canonical" href="https://tinv.app/" />
+
+  <!-- Favicons -->
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="tinv" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Open Graph (Facebook, LinkedIn, Slack, Discord…) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="tinv" />
+  <meta property="og:title" content="tinv — tiny video converter &amp; player" />
+  <meta property="og:description" content="Compress any video to a tiny .tinv file and play it in your browser. 10–50× smaller, nothing uploaded. Open source." />
+  <meta property="og:url" content="https://tinv.app/" />
+  <meta property="og:image" content="https://tinv.app/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="tinv — tiny video converter &amp; player" />
+  <meta name="twitter:description" content="Compress any video to a tiny .tinv file and play it in your browser. 10–50× smaller, nothing uploaded." />
+  <meta name="twitter:image" content="https://tinv.app/og-image.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css?v=2" />
+</head>
+<body class="app-shell">
+  <!-- Header: wordmark left, nav + index labels right -->
+  <header class="app-header">
+    <a class="brand" href="./" aria-label="tinv home">
+      <svg class="brand-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" fill="currentColor" />
+        <polygon fill="#000" points="80 40 60 40 60 30 40 30 40 20 20 20 20 40 20 60 20 80 40 80 40 70 60 70 60 60 80 60 80 40" />
+      </svg>
+      <span class="logo-title">tinv</span>
+    </a>
+
+    <nav class="header-nav" aria-label="Views">
+      <button id="nav-play" class="nav-btn active">Play</button>
+      <span class="nav-sep">/</span>
+      <button id="nav-convert" class="nav-btn">Convert</button>
+    </nav>
+
+    <div class="header-meta">
+      <nav class="header-links" aria-label="Links">
+        <a href="/about">About</a>
+        <!-- TODO: replace with the real GitHub repo URL -->
+        <a href="https://github.com/" target="_blank" rel="noopener">GitHub</a>
+        <a href="/privacy">Privacy</a>
+        <a href="https://zaahead.com" target="_blank" rel="noopener">zaahead</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="player-container">
+    <!-- Dropzone / start screen — editorial two-column -->
+    <section id="dropzone" class="dropzone split">
+      <div class="split-main">
+        <span class="eyebrow">01 / PLAY</span>
+        <h1 class="drop-headline">Play a<br />tiny video.</h1>
+        <p class="drop-lede">
+          Open a <code>.tinv</code> file, a video that's a fraction of the
+          original size. Drop it here or browse. Decoded in your browser,
+          never uploaded.
+        </p>
+        <label class="btn btn-primary">
+          Choose file
+          <span class="btn-key">⏎</span>
+          <input type="file" id="file-input" accept=".tinv,.webm,.mkv,video/*" hidden />
+        </label>
+      </div>
+      <aside class="split-side">
+        <dl class="side-specs">
+          <div><dt>Typical size</dt><dd>10–50× smaller</dd></div>
+          <div><dt>Privacy</dt><dd>On-device</dd></div>
+          <div><dt>Source</dt><dd>Open source</dd></div>
+          <div><dt>Install</dt><dd>Not required</dd></div>
+        </dl>
+        <div class="drop-foot">
+          <span class="tick">PRIVATE</span>
+          <span class="tick">OFFLINE</span>
+          <span class="tick">NO ACCOUNT</span>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Loading / error status (shown while a remote .tinv streams or fails) -->
+    <section id="status-view" class="status-view" hidden>
+      <div class="status-inner">
+        <span class="eyebrow" id="status-eyebrow">LOADING</span>
+        <p class="status-title" id="status-title">Opening video…</p>
+        <div class="status-progress" id="status-progress" hidden>
+          <div class="status-bar"><div id="status-bar-fill" class="status-bar-fill"></div></div>
+          <span class="status-bytes" id="status-bytes"></span>
+        </div>
+        <div class="status-actions" id="status-actions" hidden>
+          <button class="btn" id="status-retry">Try again</button>
+          <label class="btn btn-primary">
+            Open a file
+            <input type="file" id="status-file-input" accept=".tinv,.webm,.mkv,video/*" hidden />
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Player: framed video, instrument control row, meta strip -->
+    <section id="player-wrapper" class="player-wrapper" hidden>
+      <div class="video-stage">
+        <video id="video-element" playsinline></video>
+        <div id="center-play-indicator" class="center-play-indicator">
+          <svg class="indicator-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+        </div>
+        <!-- First-run keyboard hint (shown once, then dismissed) -->
+        <div id="kbd-hint" class="kbd-hint" hidden>
+          <div class="kbd-hint-row">
+            <span><kbd>Space</kbd> play</span>
+            <span><kbd>←</kbd><kbd>→</kbd> 10s</span>
+            <span><kbd>F</kbd> full</span>
+            <span><kbd>M</kbd> mute</span>
+            <span><kbd>&lt;</kbd><kbd>&gt;</kbd> speed</span>
+          </div>
+          <button class="kbd-hint-close" id="kbd-hint-close" aria-label="Dismiss">✕</button>
+        </div>
+      </div>
+
+      <div id="custom-controls" class="control-bar">
+        <!-- Row 1: time · seek · time -->
+        <div class="control-row seek-row">
+          <span id="time-current" class="time">0:00</span>
+          <div id="progress-container" class="progress-bar-container">
+            <div class="progress-bar-bg">
+              <div id="progress-buffer" class="progress-buffer"></div>
+              <div id="progress-fill" class="progress-fill"><div class="progress-knob"></div></div>
+            </div>
+            <div id="progress-tooltip" class="progress-tooltip">00:00</div>
+          </div>
+          <span id="time-total" class="time">0:00</span>
+        </div>
+
+        <!-- Row 2: transport (left) + options (right) -->
+        <div class="control-row button-row">
+          <div class="controls-group left">
+            <button id="skip-back-btn" class="control-btn" title="Rewind 10s (Left)">
+              <svg viewBox="0 0 24 24" class="btn-svg"><path fill="currentColor" d="M12.5 8V4l-5 5 5 5V10c2.76 0 5 2.24 5 5s-2.24 5-5 5-5-2.24-5-5H5.5c0 3.87 3.13 7 7 7s7-3.13 7-7-3.13-7-7-7z"/><text x="12.5" y="17" font-size="6" text-anchor="middle" fill="currentColor">10</text></svg>
+            </button>
+            <button id="play-pause-btn" class="control-btn" title="Play (Space)">
+              <svg id="play-icon" class="btn-svg" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+              <svg id="pause-icon" class="btn-svg" viewBox="0 0 24 24" style="display:none;"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <button id="skip-forward-btn" class="control-btn" title="Forward 10s (Right)">
+              <svg viewBox="0 0 24 24" class="btn-svg"><path fill="currentColor" d="M11.5 8V4l5 5-5 5v-4c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5h2c0 3.87-3.13 7-7 7s-7-3.13-7-7 3.13-7 7-7z"/><text x="11.5" y="17" font-size="6" text-anchor="middle" fill="currentColor">10</text></svg>
+            </button>
+            <div class="speed-control-wrapper">
+              <button id="speed-btn" class="control-btn speed-badge" title="Playback Speed (< or >)">1×</button>
+              <div class="speed-menu">
+                <button class="speed-option" data-speed="0.5">0.5×</button>
+                <button class="speed-option" data-speed="0.8">0.8×</button>
+                <button class="speed-option active" data-speed="1">1×</button>
+                <button class="speed-option" data-speed="1.25">1.25×</button>
+                <button class="speed-option" data-speed="1.5">1.5×</button>
+                <button class="speed-option" data-speed="1.75">1.75×</button>
+                <button class="speed-option" data-speed="2">2×</button>
+                <button class="speed-option" data-speed="2.5">2.5×</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="controls-group right">
+            <div class="volume-control-wrapper">
+              <button id="mute-btn" class="control-btn" title="Mute (M)">
+                <svg id="volume-high-icon" class="btn-svg" viewBox="0 0 24 24"><path fill="currentColor" d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-2 2.77L7 10H3v4h4l5 4V6z"/></svg>
+                <svg id="volume-mute-icon" class="btn-svg" viewBox="0 0 24 24" style="display:none;"><path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>
+              </button>
+              <div class="volume-slider-container">
+                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1" title="Volume" />
+              </div>
+            </div>
+            <button id="pip-btn" class="control-btn" title="Picture in Picture (P)">
+              <svg viewBox="0 0 24 24" class="btn-svg"><path fill="currentColor" d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"/></svg>
+            </button>
+            <button id="fullscreen-btn" class="control-btn" title="Fullscreen (F)">
+              <svg id="fullscreen-enter-icon" class="btn-svg" viewBox="0 0 24 24"><path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+              <svg id="fullscreen-exit-icon" class="btn-svg" viewBox="0 0 24 24" style="display:none;"><path fill="currentColor" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
+            </button>
+            <button id="close-video-btn" class="control-btn" title="Close">
+              <svg viewBox="0 0 24 24" class="btn-svg" stroke="currentColor" fill="none" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Editorial meta strip — populated from embedded .tinv metadata -->
+      <dl id="meta-strip" class="meta-strip" hidden>
+        <div class="meta-cell"><dt>File</dt><dd id="meta-file">—</dd></div>
+        <div class="meta-cell"><dt>Size</dt><dd id="meta-size">—</dd></div>
+        <div class="meta-cell"><dt>Saved</dt><dd id="meta-ratio">—</dd></div>
+        <div class="meta-cell"><dt>Author</dt><dd id="meta-author">—</dd></div>
+      </dl>
+    </section>
+
+    <!-- Convert view (in-browser AV1 encoding via native WebCodecs) -->
+    <section id="convert-view" class="convert-view split" hidden>
+      <div class="split-main">
+        <span class="eyebrow">02 / CONVERT</span>
+        <h1 class="drop-headline">Shrink a<br />video.</h1>
+        <p class="drop-lede">
+          Compress any video to a tiny <code>.tinv</code>. Encoded in your
+          browser, nothing uploaded. Best for short clips; for large files the
+          desktop tool is much faster.
+        </p>
+      </div>
+
+      <aside class="split-side">
+        <div class="form">
+          <div class="field">
+            <span class="field-label">Source</span>
+            <label class="btn">
+              <span id="convert-pick-label">Choose video</span>
+              <input type="file" id="convert-input" accept="video/*,.mp4,.mov,.mkv,.webm" hidden />
+            </label>
+          </div>
+
+          <div class="field">
+            <span class="field-label">Preset</span>
+            <select id="convert-preset" class="select"></select>
+          </div>
+
+          <div class="field">
+            <span class="field-label">Resolution</span>
+            <label class="check">
+              <input type="checkbox" id="convert-cap" checked />
+              <span>Cap at 1080p</span>
+            </label>
+          </div>
+
+          <div class="field" id="convert-estimate-row" hidden>
+            <span class="field-label">Estimate</span>
+            <span class="convert-estimate" id="convert-estimate">—</span>
+          </div>
+        </div>
+
+        <button id="convert-start" class="btn btn-primary convert-start" disabled>
+          Convert
+          <span class="btn-key">⏎</span>
+        </button>
+
+        <div id="convert-progress-wrap" class="convert-progress-wrap" hidden>
+          <div class="convert-progress-bar"><div id="convert-progress-fill"></div></div>
+          <div id="convert-status" class="convert-status">—</div>
+        </div>
+
+        <div id="convert-result" class="convert-result" hidden></div>
+      </aside>
+    </section>
+  </main>
+
+  <!-- Footer: secondary links (shown on mobile; header holds them on desktop) -->
+  <footer class="app-footer">
+    <nav class="footer-links" aria-label="Links">
+      <a href="/about">About</a>
+      <!-- TODO: replace with the real GitHub repo URL -->
+      <a href="https://github.com/" target="_blank" rel="noopener">GitHub</a>
+      <a href="/privacy">Privacy</a>
+      <a href="https://zaahead.com" target="_blank" rel="noopener">zaahead</a>
+    </nav>
+    <span class="footer-mark">tinv</span>
+  </footer>
+
+  <script type="module" src="app.js?v=3"></script>
+</body>
+</html>

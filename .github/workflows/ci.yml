@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  js:
+    name: Lint JS + format round-trip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Syntax-check all JS
+        run: |
+          for f in player-web/player-core.js player-web/app.js player-web/convert.js \
+                   player-web/tinv-format.js player-web/sw.js \
+                   player-extension/player.js player-extension/player-core.js \
+                   player-extension/tinv-format.js player-extension/background.js \
+                   cli/convert.js; do
+            node --check "$f"
+          done
+
+      - name: .tinv format round-trip (encode → decode)
+        run: |
+          node --input-type=module -e '
+            import { encodeTinv, decodeTinv, isTinv } from "./player-web/tinv-format.js";
+            const webm = new Uint8Array(Array.from({length: 1000}, (_, i) => (i * 7 + 13) % 256));
+            const meta = { title: "CI", chapters: [], sourceSizeBytes: 1, encodedSizeBytes: 1000 };
+            const tinv = await encodeTinv(webm, meta);
+            if (!isTinv(tinv)) { console.error("not a tinv container"); process.exit(1); }
+            const { blob, meta: m } = await decodeTinv(tinv);
+            const back = new Uint8Array(await blob.arrayBuffer());
+            const same = back.length === webm.length && back.every((b, i) => b === webm[i]);
+            if (!same) { console.error("round-trip mismatch"); process.exit(1); }
+            if (m.title !== "CI") { console.error("metadata lost"); process.exit(1); }
+            console.log("format round-trip OK");
+          '
+
+      - name: TINV3 streaming round-trip (split fMP4 → stream-decode)
+        run: |
+          node --input-type=module -e '
+            import { encodeTinvStream, decodeTinv, openTinvStream, isStreamable } from "./player-web/tinv-format.js";
+            // Build a minimal fragmented-MP4 shape: ftyp, moov, then moof+mdat pairs.
+            const box = (type, body) => {
+              const t = new TextEncoder().encode(type);
+              const size = 8 + body.length;
+              const out = new Uint8Array(size);
+              new DataView(out.buffer).setUint32(0, size);
+              out.set(t, 4); out.set(body, 8);
+              return out;
+            };
+            const filler = (n) => new Uint8Array(Array.from({length:n}, (_,i)=>(i*5+1)%256));
+            const parts = [box("ftyp", filler(16)), box("moov", filler(80))];
+            for (let i = 0; i < 6; i++) { parts.push(box("moof", filler(40))); parts.push(box("mdat", filler(120000))); }
+            let len = 0; for (const p of parts) len += p.length;
+            const mp4 = new Uint8Array(len); let o = 0; for (const p of parts) { mp4.set(p, o); o += p.length; }
+
+            const tinv = await encodeTinvStream(mp4, { title: "CI3", chapters: [] });
+            if (!isStreamable(tinv)) { console.error("not streamable TINV3 (fell back?)"); process.exit(1); }
+
+            // Full decode must reassemble the exact bytes.
+            const { blob } = await decodeTinv(tinv);
+            const back = new Uint8Array(await blob.arrayBuffer());
+            if (!(back.length === mp4.length && back.every((b,i)=>b===mp4[i]))) {
+              console.error("TINV3 full-decode mismatch"); process.exit(1);
+            }
+
+            // Streaming decode must reassemble the exact bytes too.
+            const resp = new Response(tinv, { headers: { "content-length": String(tinv.length) } });
+            const s = await openTinvStream(resp, () => {});
+            const chunks = [s.init]; let c; while ((c = await s.next()) !== null) chunks.push(c);
+            let tl = 0; for (const p of chunks) tl += p.length;
+            const joined = new Uint8Array(tl); let oo = 0; for (const p of chunks) { joined.set(p, oo); oo += p.length; }
+            if (!(joined.length === mp4.length && joined.every((b,i)=>b===mp4[i]))) {
+              console.error("TINV3 stream-decode mismatch"); process.exit(1);
+            }
+            console.log("TINV3 streaming round-trip OK");
+          '

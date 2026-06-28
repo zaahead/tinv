@@ -1,0 +1,21 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+
+# Node
+node_modules/
+
+# Vercel
+.vercel
+
+# Bundled ffmpeg (large static binaries — see cli/ffmpeg/README.md)
+cli/ffmpeg/ffmpeg
+cli/ffmpeg/ffprobe
+cli/ffmpeg/*.dylib
+
+# Generated .tinv outputs
+*.tinv

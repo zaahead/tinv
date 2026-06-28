@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "tinv player",
+  "version": "1.0.0",
+  "description": "Plays tiny .tinv videos automatically. Click a .tinv link anywhere on the web and it streams inline instead of downloading.",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "tinv plays .tinv links automatically",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["player.html", "player.js", "player-core.js", "tinv-format.js", "player.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

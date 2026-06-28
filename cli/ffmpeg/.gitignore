@@ -1,0 +1,4 @@
+# Large bundled binaries — not committed
+ffmpeg
+ffprobe
+*.dylib

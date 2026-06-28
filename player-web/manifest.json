@@ -1,0 +1,31 @@
+{
+  "name": "tinv — tiny video converter & player",
+  "short_name": "tinv",
+  "description": "Shrink videos to tiny .tinv files and play them, in your browser. Open source, no upload.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "file_handlers": [
+    {
+      "action": "./index.html",
+      "accept": {
+        "video/webm": [".tinv"],
+        "application/octet-stream": [".tinv"]
+      },
+      "icons": [
+        { "src": "icon.png", "sizes": "512x512", "type": "image/png" }
+      ],
+      "launch_type": "single-client"
+    }
+  ]
+}

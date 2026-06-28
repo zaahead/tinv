@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tinv — Privacy Policy</title>
+  <meta name="theme-color" content="#000000" />
+  <link rel="icon" href="icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #000; --panel: #111; --border: rgba(255,255,255,.10);
+      --text: #fff; --dim: rgba(255,255,255,.6);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text);
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased; line-height: 1.6; }
+    .header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+    }
+    .logo { width: 24px; height: 24px; display: block; }
+    .brand { font-weight: 700; letter-spacing: -.5px; font-size: 18px; }
+    main { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
+    h1 { font-size: 28px; margin: 0 0 6px; }
+    .updated { color: var(--dim); font-size: 13px; margin-bottom: 28px; }
+    h2 { font-size: 18px; margin: 32px 0 8px; }
+    p, li { color: var(--dim); }
+    p, ul { margin: 0 0 14px; }
+    li { margin-bottom: 6px; }
+    strong { color: var(--text); }
+    a { color: var(--text); }
+    .box { background: var(--panel); border: 1px solid var(--border);
+      padding: 16px 18px; margin: 18px 0; }
+    footer { color: var(--dim); font-size: 13px; margin-top: 40px;
+      border-top: 1px solid var(--border); padding-top: 16px; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="#fff" />
+      <polygon fill="#000" points="80 40 60 40 60 30 40 30 40 20 20 20 20 40 20 60 20 80 40 80 40 70 60 70 60 60 80 60 80 40" />
+    </svg>
+    <span class="brand">tinv</span>
+  </header>
+
+  <main>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: 27 June 2026</p>
+
+    <div class="box">
+      <strong>Short version:</strong> tinv does not collect, store, or transmit
+      any personal data. Videos play entirely on your device. There is no
+      account, no tracking, and no analytics.
+    </div>
+
+    <h2>What this covers</h2>
+    <p>
+      This policy applies to the tinv web player (this website) and the
+      <strong>tinv player</strong> browser extension. Both exist for a single
+      purpose: to compress and play <strong>.tinv</strong> video files in your
+      browser.
+    </p>
+
+    <h2>Data we collect</h2>
+    <p><strong>None.</strong> We do not collect any personal information. We have
+      no servers that receive your data, no cookies for tracking, no analytics,
+      and no advertising.</p>
+
+    <h2>How your videos are handled</h2>
+    <ul>
+      <li>Videos are decoded and played <strong>locally on your device</strong>.</li>
+      <li>Files you open are never uploaded to us or to any third party.</li>
+      <li>The only network request is the browser fetching the .tinv file you
+        chose to open (for example, a shared link).</li>
+      <li>Your last playback position is stored in your browser's local storage
+        on your own device so you can resume — it never leaves your device.</li>
+    </ul>
+
+    <h2>Browser extension permissions</h2>
+    <p>The <strong>tinv player</strong> extension requests:</p>
+    <ul>
+      <li><strong>declarativeNetRequest</strong> — to detect when you open a
+        .tinv link and redirect it to the bundled player so it plays inline
+        instead of downloading. It only matches URLs ending in “.tinv”.</li>
+      <li><strong>Host access (all sites)</strong> — because .tinv links can be
+        hosted on any website, the redirect rule must work on any domain. The
+        extension does <strong>not</strong> read page content, inject scripts,
+        or collect data from the pages you visit.</li>
+    </ul>
+
+    <h2>Third parties</h2>
+    <p>This site is hosted on Vercel, which may collect standard server logs
+      (such as IP address) as part of serving the page, per Vercel's own
+      privacy practices. tinv itself adds no tracking on top of this.</p>
+
+    <h2>Children's privacy</h2>
+    <p>tinv collects no data from anyone, including children.</p>
+
+    <h2>Changes</h2>
+    <p>If this policy changes, the “Last updated” date above will change. The
+      single-purpose, no-data-collection model is not expected to change.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy: <a href="mailto:me@zaahead.com">me@zaahead.com</a></p>
+
+    <footer>
+      tinv — tiny video converter and player. This player and extension collect no personal data.
+    </footer>
+  </main>
+</body>
+</html>

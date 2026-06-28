@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tinv player</title>
+  <link rel="stylesheet" href="player.css" />
+</head>
+<body class="app-shell">
+  <!-- Header: wordmark left, filename right (editorial, matches PWA). -->
+  <header class="app-header">
+    <div class="brand">
+      <svg class="brand-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect fill="currentColor" width="100" height="100"/>
+        <polygon fill="#000" points="80 40 60 40 60 30 40 30 40 20 20 20 20 40 20 60 20 80 40 80 40 70 60 70 60 60 80 60 80 40"/>
+      </svg>
+      <span class="logo-title">tinv</span>
+    </div>
+    <span id="video-filename" class="header-filename"></span>
+  </header>
+
+  <main class="player-container">
+    <!-- Dropzone (fallback only — auto-play normally bypasses this). -->
+    <section id="dropzone" class="dropzone">
+      <span class="eyebrow">tinv player</span>
+      <h1 class="drop-headline">Play a<br />tiny video.</h1>
+      <p class="drop-lede">
+        Open a <code>.tinv</code> file. Drop it here or browse. Decoded on your
+        device, never uploaded.
+      </p>
+      <label class="btn btn-primary">
+        Choose file
+        <input type="file" id="file-input" accept=".tinv,.webm,.mkv,video/*" hidden />
+      </label>
+    </section>
+
+    <!-- Loading / error status (shown while a remote .tinv streams or fails). -->
+    <section id="status-view" class="status-view" hidden>
+      <div class="status-inner">
+        <span class="eyebrow" id="status-eyebrow">LOADING</span>
+        <p class="status-title" id="status-title">Opening video…</p>
+        <div class="status-progress" id="status-progress" hidden>
+          <div class="status-bar"><div id="status-bar-fill" class="status-bar-fill"></div></div>
+          <span class="status-bytes" id="status-bytes"></span>
+        </div>
+        <div class="status-actions" id="status-actions" hidden>
+          <label class="btn btn-primary">
+            Open a file
+            <input type="file" id="status-file-input" accept=".tinv,.webm,.mkv,video/*" hidden />
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Player: video on top, single borderless control bar below (like the app). -->
+    <section id="player-wrapper" class="player-wrapper" hidden>
+      <div class="video-stage">
+        <video id="video-element" playsinline></video>
+        <div id="center-play-indicator" class="center-play-indicator">
+          <svg class="indicator-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+        </div>
+      </div>
+
+      <!-- Borderless control bar BELOW the video (matches Flutter app). -->
+      <div id="custom-controls" class="control-bar">
+        <!-- Row 1: time · seek · time -->
+        <div class="control-row seek-row">
+          <span id="time-current" class="time">0:00</span>
+          <div id="progress-container" class="progress-bar-container">
+            <div class="progress-bar-bg">
+              <div id="progress-buffer" class="progress-buffer"></div>
+              <div id="progress-fill" class="progress-fill"><div class="progress-knob"></div></div>
+            </div>
+            <div id="progress-tooltip" class="progress-tooltip">00:00</div>
+          </div>
+          <span id="time-total" class="time">0:00</span>
+        </div>
+
+        <!-- Row 2: transport (left) + options (right) -->
+        <div class="control-row button-row">
+          <div class="controls-group left">
+            <button id="skip-back-btn" class="control-btn" title="Rewind 10s (Left)">
+              <svg viewBox="0 0 24 24" class="btn-svg"><path fill="currentColor" d="M12.5 8V4l-5 5 5 5V10c2.76 0 5 2.24 5 5s-2.24 5-5 5-5-2.24-5-5H5.5c0 3.87 3.13 7 7 7s7-3.13 7-7-3.13-7-7-7z"/><text x="12.5" y="17" font-size="6" text-anchor="middle" fill="currentColor">10</text></svg>
+            </button>
+            <button id="play-pause-btn" class="control-btn" title="Play (Space)">
+              <svg id="play-icon" class="btn-svg" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+              <svg id="pause-icon" class="btn-svg" viewBox="0 0 24 24" style="display:none;"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <button id="skip-forward-btn" class="control-btn" title="Forward 10s (Right)">
+              <svg viewBox="0 0 24 24" class="btn-svg"><path fill="currentColor" d="M11.5 8V4l5 5-5 5v-4c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5h2c0 3.87-3.13 7-7 7s-7-3.13-7-7 3.13-7 7-7z"/><text x="11.5" y="17" font-size="6" text-anchor="middle" fill="currentColor">10</text></svg>
+            </button>
+            <div class="speed-control-wrapper">
+              <button id="speed-btn" class="control-btn speed-badge" title="Playback Speed (< or >)">1×</button>
+              <div class="speed-menu">
+                <button class="speed-option" data-speed="0.5">0.5×</button>
+                <button class="speed-option" data-speed="0.8">0.8×</button>
+                <button class="speed-option active" data-speed="1">1×</button>
+                <button class="speed-option" data-speed="1.25">1.25×</button>
+                <button class="speed-option" data-speed="1.5">1.5×</button>
+                <button class="speed-option" data-speed="1.75">1.75×</button>
+                <button class="speed-option" data-speed="2">2×</button>
+                <button class="speed-option" data-speed="2.5">2.5×</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="controls-group right">
+            <div class="volume-control-wrapper">
+              <button id="mute-btn" class="control-btn" title="Mute (M)">
+                <svg id="volume-high-icon" class="btn-svg" viewBox="0 0 24 24"><path fill="currentColor" d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-2 2.77L7 10H3v4h4l5 4V6z"/></svg>
+                <svg id="volume-mute-icon" class="btn-svg" viewBox="0 0 24 24" style="display:none;"><path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>
+              </button>
+              <div class="volume-slider-container">
+                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1" title="Volume" />
+              </div>
+            </div>
+            <button id="pip-btn" class="control-btn" title="Picture in Picture (P)">
+              <svg viewBox="0 0 24 24" class="btn-svg"><path fill="currentColor" d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"/></svg>
+            </button>
+            <button id="fullscreen-btn" class="control-btn" title="Fullscreen (F)">
+              <svg id="fullscreen-enter-icon" class="btn-svg" viewBox="0 0 24 24"><path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+              <svg id="fullscreen-exit-icon" class="btn-svg" viewBox="0 0 24 24" style="display:none;"><path fill="currentColor" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
+            </button>
+            <button id="close-video-btn" class="control-btn" title="Close">
+              <svg viewBox="0 0 24 24" class="btn-svg" stroke="currentColor" fill="none" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="player.js"></script>
+</body>
+</html>
