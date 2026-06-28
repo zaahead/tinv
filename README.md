@@ -43,21 +43,21 @@ anything; the file streams and decodes in their browser.
 | Folder | What it is |
 |--------|------------|
 | **`cli/`** | Node converter — wraps a bundled ffmpeg (SVT-AV1) to make `.tinv` files. The fast path for large videos. |
-| **`player-web/`** | The PWA — plays `.tinv` and can convert small videos in-browser (native WebCodecs AV1, Chromium only). Live at **https://tinv.app** |
-| **`player-extension/`** | Chrome/Edge extension — auto-plays `.tinv` links you click on the web. |
+| **`web/`** | The PWA — plays `.tinv` and can convert small videos in-browser (native WebCodecs AV1, Chromium only). Live at **https://tinv.app** |
+| **`extension/`** | Chrome/Edge extension — auto-plays `.tinv` links you click on the web. |
 
 ```
 tinv/
 ├── cli/
 │   ├── convert.js          # Node converter (SVT-AV1)
 │   └── ffmpeg/             # bundled ffmpeg + ffprobe (git-ignored)
-├── player-web/             # the PWA (deployed to Vercel)
+├── web/             # the PWA (deployed to Vercel)
 │   ├── index.html  app.js  player-core.js  style.css
 │   ├── convert.js          # in-browser encoding (native WebCodecs AV1)
 │   ├── tinv-format.js      # .tinv encode/decode (shared everywhere)
 │   ├── embed.html  privacy.html  manifest.json  sw.js
 │   └── vercel.json
-├── player-extension/       # Chrome/Edge extension (load unpacked / Web Store)
+├── extension/       # Chrome/Edge extension (load unpacked / Web Store)
 ├── GUIDE.md                # command cheat sheet
 ├── "tinv logo.svg"  "tinv logo.png"
 └── .github/workflows/ci.yml
@@ -93,7 +93,7 @@ the CLI and limited by browser memory, so use the CLI for big recordings.
 
 - **Share link:** `https://tinv.app/?url=https://your-host/lecture.tinv`
 - **Embed:** `https://tinv.app/embed?url=...`
-- **Extension:** install `player-extension/` (Chrome → Developer mode → Load
+- **Extension:** install `extension/` (Chrome → Developer mode → Load
   unpacked), then click any `.tinv` link to play it inline.
 
 ---
@@ -103,11 +103,11 @@ the CLI and limited by browser memory, so use the CLI for big recordings.
 The extension can ship on the Chrome Web Store:
 
 ```bash
-cd player-extension && zip -r -q ~/Desktop/tinv-extension.zip . -x "*.DS_Store" && cd ..
+cd extension && zip -r -q ~/Desktop/tinv-extension.zip . -x "*.DS_Store" && cd ..
 ```
 
 Upload that ZIP at the [Web Store dev console](https://chrome.google.com/webstore/devconsole)
-and fill the listing using `player-extension/STORE_LISTING.md`. You'll also need
+and fill the listing using `extension/STORE_LISTING.md`. You'll also need
 a screenshot and the privacy URL (`https://tinv.app/privacy`).
 
 ---
@@ -120,7 +120,7 @@ before the whole file downloads) via MediaSource. Older `"TINV2"` (single
 AES-CTR blob) still decodes. One implementation, shared by the CLI, PWA, and
 extension:
 
-- `player-web/tinv-format.js` — `encodeTinv` / `decodeTinv` / `readMetadata` / `isTinv`
+- `web/tinv-format.js` — `encodeTinv` / `decodeTinv` / `readMetadata` / `isTinv`
 
 A `.tinv` won't play if dragged into a plain browser — that's intentional. This
 is obfuscation, not DRM (the secret ships in the players).

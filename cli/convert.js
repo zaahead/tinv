@@ -3,7 +3,7 @@
 //
 // Wraps a bundled (or PATH) ffmpeg with SVT-AV1 to make tiny AV1/Opus video,
 // then wraps it into the obfuscated .tinv container (embedded metadata + XOR),
-// using the SAME format code as the players (../player-web/tinv-format.js).
+// using the SAME format code as the players (../web/tinv-format.js).
 //
 //   node cli/convert.js input.mp4 [output.tinv] [--preset screencast|talkinghead|squeeze|near] [--no-cap]
 //
@@ -17,7 +17,7 @@ import { basename, extname, join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
-import { encodeTinvStream } from "../player-web/tinv-format.js";
+import { encodeTinvStream } from "../web/tinv-format.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
