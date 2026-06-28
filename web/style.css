@@ -651,28 +651,6 @@ button { font: inherit; color: inherit; }
 }
 .convert-result { margin-top: 24px; display: flex; flex-direction: column; gap: 14px; }
 .convert-done { font-family: var(--mono); font-size: 14px; color: var(--fg); }
-.convert-share {
-  border-top: 1px solid var(--line-2);
-  padding-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.convert-share-hint {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--fg-2);
-  max-width: 44ch;
-}
-.convert-share-hint code {
-  font-family: var(--mono);
-  font-size: 0.86em;
-  color: var(--fg);
-  border: 1px solid var(--line);
-  padding: 1px 5px;
-}
-.convert-copy { justify-self: start; align-self: start; }
 
 /* ============================ COMPAT BANNER ============================ */
 

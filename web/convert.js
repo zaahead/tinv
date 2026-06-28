@@ -44,6 +44,25 @@ function av1Codec(width, height) {
   return `av01.0.${level}M.08`;
 }
 
+// Find a video config the encoder will actually accept. isConfigSupported in
+// the gate only validates a small 720p/default-latency config; the real encode
+// uses a resolution-scaled level and "quality" latency, which many hardware AV1
+// encoders reject (they're realtime-only). Probe quality→realtime and return
+// the first supported config so configure() doesn't fail silently.
+async function pickVideoConfig(outW, outH, bitrate, framerate) {
+  const base = { codec: av1Codec(outW, outH), width: outW, height: outH, bitrate, framerate };
+  for (const latencyMode of ["quality", "realtime"]) {
+    const cfg = { ...base, latencyMode };
+    try {
+      const s = await VideoEncoder.isConfigSupported(cfg);
+      if (s.supported) return cfg;
+    } catch { /* try next */ }
+  }
+  // Nothing reported supported — return the realtime variant and let configure
+  // surface the real error rather than guessing further.
+  return { ...base, latencyMode: "realtime" };
+}
+
 /**
  * Convert a File to a .tinv (Uint8Array) using native WebCodecs.
  * opts: { preset, cap1080, onProgress(0..1), onStage(text) }
@@ -101,17 +120,16 @@ export async function convertFileToTinv(file, opts = {}) {
 
   // ---- Video: grab frames, encode AV1 ----
   stage("Encoding video…");
+  // WebCodecs reports encoder failures via the error callback on its own task —
+  // throwing there does NOT reject our await, it just vanishes. Capture it
+  // instead and surface it, so a failed encode is a clear error, not a 4KB file.
+  let encErr = null;
+  let chunkCount = 0;
   const encoder = new VideoEncoder({
-    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-    error: (e) => { throw e; },
+    output: (chunk, meta) => { chunkCount++; try { muxer.addVideoChunk(chunk, meta); } catch (e) { encErr = encErr || e; } },
+    error: (e) => { encErr = encErr || e; },
   });
-  encoder.configure({
-    codec: av1Codec(outW, outH),
-    width: outW, height: outH,
-    bitrate: preset.bitrate,
-    framerate: preset.fps,
-    latencyMode: "quality",
-  });
+  encoder.configure(await pickVideoConfig(outW, outH, preset.bitrate, preset.fps));
 
   const canvas = document.createElement("canvas");
   canvas.width = outW; canvas.height = outH;
@@ -127,6 +145,7 @@ export async function convertFileToTinv(file, opts = {}) {
 
   // Seek-and-grab loop: deterministic, works without realtime playback.
   for (let i = 0; i < totalFrames; i++) {
+    if (encErr) throw encErr;
     const t = Math.min(duration - 0.001, i * frameInterval);
     await seek(video, t);
     ctx.drawImage(video, 0, 0, outW, outH);
@@ -134,12 +153,19 @@ export async function convertFileToTinv(file, opts = {}) {
     encoder.encode(frame, { keyFrame: i % keyEvery === 0 });
     frame.close();
     encoded++;
-    if (encoded % 3 === 0) { progress((i / totalFrames) * 0.95); await encoder.flush().catch(()=>{}); }
+    if (encoded % 3 === 0) progress((i / totalFrames) * 0.95);
+    // Backpressure: keep the encode queue bounded without flushing mid-stream.
+    while (encoder.encodeQueueSize > 8 && !encErr) await new Promise((r) => setTimeout(r, 8));
   }
 
   stage("Finalizing…");
   await encoder.flush();
+  if (encErr) throw encErr;
   encoder.close();
+  if (!chunkCount) {
+    URL.revokeObjectURL(url);
+    throw new Error("Your browser's AV1 encoder produced no output. Try a different preset, or the desktop converter.");
+  }
   muxer.finalize();
   const outBytes = new Uint8Array(muxer.target.buffer);
   URL.revokeObjectURL(url);

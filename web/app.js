@@ -464,29 +464,6 @@ async function runConvert() {
     dl.textContent = `Download ${out.name}`;
     result.appendChild(dl);
 
-    // Share guidance: a .tinv needs a public URL to share; once hosted, this
-    // link plays it anywhere. Copy the template so they can paste their URL in.
-    const share = document.createElement("div");
-    share.className = "convert-share";
-    share.innerHTML =
-      `<p class="convert-share-hint">To share: host the <code>.tinv</code> on any static host, ` +
-      `then this link plays it anywhere.</p>`;
-    const copyBtn = document.createElement("button");
-    copyBtn.className = "btn convert-copy";
-    copyBtn.textContent = "Copy share link";
-    copyBtn.addEventListener("click", async () => {
-      const template = `https://tinv.app/?url=YOUR_HOSTED_URL/${out.name}`;
-      try {
-        await navigator.clipboard.writeText(template);
-        copyBtn.textContent = "Copied ✓";
-        setTimeout(() => { copyBtn.textContent = "Copy share link"; }, 1800);
-      } catch (_) {
-        copyBtn.textContent = "Copy failed";
-      }
-    });
-    share.appendChild(copyBtn);
-    result.appendChild(share);
-
     result.hidden = false;
     status.textContent = "Done.";
   } catch (e) {
