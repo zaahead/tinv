@@ -45,3 +45,18 @@ test("whole-file CLI output decodes as valid fMP4 in the web module", { skip: !f
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("force-chunked CLI output decodes as valid fMP4 with ~correct duration", { skip: !ffOk && "ffmpeg/libsvtav1 unavailable" }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), "tinv_itc_"));
+  try {
+    const src = await makeClip(dir, 3);
+    const dst = join(dir, "clip.tinv");
+    const sem = makeSemaphore(4);
+    // segLen 1s + minSplit 0 forces ~3 parallel segments on a 3s clip
+    const r = await convertOne(src, dst, "talkinghead", { cap1080: true, segLen: 1, minSplit: 0, sem });
+    assert.ok(r.outBytes > 0);
+    await assertPlayable(dst);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

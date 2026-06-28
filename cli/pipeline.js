@@ -1,10 +1,13 @@
 // cli/pipeline.js
 // Per-file orchestration: decide whole-file vs chunked, encode, wrap .tinv.
-import { readFile, writeFile, stat, mkdtemp, rm } from "node:fs/promises";
+import { readFile, writeFile, stat, mkdtemp, rm, readdir } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { probe, runFfmpeg, wholeFileArgs, PRESETS } from "./ffmpeg.js";
+import {
+  probe, runFfmpeg, wholeFileArgs, PRESETS,
+  splitArgs, segmentEncodeArgs, concatArgs, audioArgs, muxFragmentArgs,
+} from "./ffmpeg.js";
 import { encodeTinvStream } from "./tinv-format.js";
 
 export function shouldChunk(duration, minSplit) {
@@ -30,16 +33,55 @@ async function wrapTinv(fMp4Path, src, srcBytes, dst) {
   return { outBytes: container.length };
 }
 
+async function encodeChunked(src, work, p, opts, hasAudio) {
+  // 1. Copy-split the source video at its keyframes into time segments.
+  await runFfmpeg(splitArgs(src, join(work, "src_%04d.mkv"), opts.segLen));
+  const srcSegs = (await readdir(work))
+    .filter((f) => /^src_\d+\.mkv$/.test(f))
+    .sort()
+    .map((f) => join(work, f));
+  if (!srcSegs.length) throw new Error("copy-split produced no segments");
+
+  // 2. Encode each segment to AV1 video-only, in parallel through the shared pool.
+  const encSegs = srcSegs.map((_, i) => join(work, `enc_${String(i).padStart(4, "0")}.mp4`));
+  await Promise.all(srcSegs.map((s, i) =>
+    opts.sem.run(() => runFfmpeg(segmentEncodeArgs(s, encSegs[i], p, opts.cap1080), opts.onTime)),
+  ));
+
+  // 3. Concat-copy the encoded video segments.
+  const listFile = join(work, "list.txt");
+  await writeFile(listFile, encSegs.map((path) => `file '${path}'`).join("\n"));
+  const videoPath = join(work, "video.mp4");
+  await runFfmpeg(concatArgs(listFile, videoPath));
+
+  // 4. Encode audio once over the original source.
+  let audioPath = null;
+  if (hasAudio) {
+    audioPath = join(work, "audio.ogg");
+    await runFfmpeg(audioArgs(src, audioPath, p));
+  }
+
+  // 5. Mux + fragment to streaming fMP4.
+  const fMp4 = join(work, "out.mp4");
+  await runFfmpeg(muxFragmentArgs(videoPath, audioPath, fMp4));
+  return fMp4;
+}
+
 export async function convertOne(src, dst, presetName, opts) {
   const p = PRESETS[presetName];
   const { duration, hasAudio } = probe(src);
   const srcBytes = (await stat(src)).size;
   const work = await mkdtemp(join(tmpdir(), "tinv_"));
   try {
-    const fMp4 = join(work, "out.mp4");
-    await opts.sem.run(() =>
-      runFfmpeg(wholeFileArgs(src, fMp4, p, opts.cap1080, hasAudio), opts.onTime),
-    );
+    let fMp4;
+    if (shouldChunk(duration, opts.minSplit)) {
+      fMp4 = await encodeChunked(src, work, p, opts, hasAudio);
+    } else {
+      fMp4 = join(work, "out.mp4");
+      await opts.sem.run(() =>
+        runFfmpeg(wholeFileArgs(src, fMp4, p, opts.cap1080, hasAudio), opts.onTime),
+      );
+    }
     const { outBytes } = await wrapTinv(fMp4, src, srcBytes, dst);
     return { srcBytes, outBytes };
   } finally {
