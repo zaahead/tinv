@@ -2,6 +2,7 @@
 //
 //   tinv <input...> [-o out.tinv] [--preset screencast|talkinghead|squeeze|near]
 //        [--no-cap] [--jobs N] [--segment SEC] [--min-split SEC]
+//        [--workers host:port,…]
 //
 // A bounded thread pool caps concurrent encodes; each SVT-AV1 encode is given
 // lp = cores/jobs threads so total threads track the core count. Small files
@@ -25,6 +26,7 @@ struct Args {
     jobs: usize,
     seg_len: f64,
     min_split: f64,
+    workers: Vec<String>,
 }
 
 fn parse_args(argv: &[String], cores: usize) -> Args {
@@ -36,6 +38,7 @@ fn parse_args(argv: &[String], cores: usize) -> Args {
         jobs: pool::default_jobs(cores),
         seg_len: 30.0,
         min_split: 60.0,
+        workers: Vec::new(),
     };
     let mut i = 0;
     while i < argv.len() {
@@ -46,6 +49,7 @@ fn parse_args(argv: &[String], cores: usize) -> Args {
             "--jobs" => { i += 1; a.jobs = argv.get(i).and_then(|v| v.parse::<usize>().ok()).unwrap_or(1).max(1); }
             "--segment" => { i += 1; a.seg_len = argv.get(i).and_then(|v| v.parse::<f64>().ok()).unwrap_or(30.0).max(1.0); }
             "--min-split" => { i += 1; a.min_split = argv.get(i).and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0).max(0.0); }
+            "--workers" => { i += 1; if let Some(v) = argv.get(i) { a.workers = v.split(',').filter(|s| !s.is_empty()).map(|s| s.to_string()).collect(); } }
             other => a.inputs.push(other.to_string()),
         }
         i += 1;
@@ -83,9 +87,30 @@ fn main() {
     }
 
     let lp = pool::lp_for(cores, args.jobs);
+
+    use ccli::worker_client;
+    let mut worker_slots: Vec<pipeline::WorkerSlot> = Vec::new();
+    let mut remote_slot_total = 0usize;
+    for raw in &args.workers {
+        let base_url = if raw.starts_with("http") { raw.clone() } else { format!("http://{raw}") };
+        match worker_client::capacity(&base_url) {
+            Ok(c) if c.svtav1 && c.slots > 0 => {
+                remote_slot_total += c.slots;
+                worker_slots.push(pipeline::WorkerSlot { base_url, slots: c.slots });
+            }
+            Ok(_) => eprintln!("  ! worker {base_url} has no usable SVT-AV1 encoder; skipping"),
+            Err(e) => eprintln!("  ! worker {base_url} unreachable ({e}); skipping"),
+        }
+    }
+
+    let cluster = if worker_slots.is_empty() {
+        String::new()
+    } else {
+        format!(", workers={} ({} remote + {} local slots)", worker_slots.len(), remote_slot_total, args.jobs)
+    };
     println!(
-        "tinv: {} file(s), preset={}, jobs={}, lp={}, segment={}s, min-split={}s",
-        args.inputs.len(), args.preset, args.jobs, lp, args.seg_len as i64, args.min_split as i64
+        "tinv: {} file(s), preset={}, jobs={}, lp={}{}, segment={}s, min-split={}s",
+        args.inputs.len(), args.preset, args.jobs, lp, cluster, args.seg_len as i64, args.min_split as i64
     );
 
     let inline = args.inputs.len() == 1 && std::io::stdout().is_terminal();
@@ -112,7 +137,7 @@ fn main() {
             lp,
             ffmpeg: ffmpeg_bin.clone(),
             ffprobe: ffprobe_bin.clone(),
-            workers: Vec::new(),
+            workers: worker_slots.clone(),
         };
         let progress = Progress { name: name.clone(), inline };
         match convert_one(src, &dst, p, &opts, &progress) {
@@ -150,5 +175,18 @@ mod tests {
         assert!(!a.cap1080);
         assert_eq!(a.jobs, 8);
         assert_eq!(a.inputs, vec!["a.mp4", "b.mp4"]);
+    }
+
+    #[test]
+    fn parse_workers_flag() {
+        let a = parse_args(&["in.mp4".into(), "--workers".into(), "10.0.0.1:9000,10.0.0.2:9000".into()], 8);
+        assert_eq!(a.workers, vec!["10.0.0.1:9000", "10.0.0.2:9000"]);
+
+        let a = parse_args(&["in.mp4".into()], 8);
+        assert!(a.workers.is_empty());
+
+        // http:// prefix preserved as-is
+        let a = parse_args(&["in.mp4".into(), "--workers".into(), "http://worker.local:9000".into()], 8);
+        assert_eq!(a.workers, vec!["http://worker.local:9000"]);
     }
 }
