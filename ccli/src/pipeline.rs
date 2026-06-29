@@ -4,10 +4,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use crate::ffmpeg;
-use crate::pool;
-use crate::preset::Preset;
-use crate::tinv::{self, Meta};
+use ccli::ffmpeg;
+use ccli::pool;
+use ccli::preset::Preset;
+use ccli::tinv::{self, Meta};
 
 pub struct Opts {
     pub cap1080: bool,

@@ -1,0 +1,7 @@
+//! tinv native converter — shared library used by the `tinv` coordinator and
+//! the `tinv-worker` binaries.
+pub mod ffmpeg;
+pub mod mp4;
+pub mod pool;
+pub mod preset;
+pub mod tinv;

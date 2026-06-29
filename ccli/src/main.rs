@@ -9,16 +9,12 @@
 // muxed with one Opus track, fragmented, then wrapped in the TINV3 container so
 // the web app and extension can play CLI-made files.
 
-mod ffmpeg;
-mod mp4;
 mod pipeline;
-mod pool;
-mod preset;
-mod tinv;
 
 use std::io::IsTerminal;
 use std::path::Path;
 
+use ccli::{ffmpeg, pool, preset};
 use pipeline::{convert_one, Opts, Progress};
 
 struct Args {
