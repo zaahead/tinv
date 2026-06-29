@@ -6,4 +6,5 @@ pub mod mp4;
 pub mod pool;
 pub mod preset;
 pub mod tinv;
+pub mod scheduler;
 pub mod worker_client;
