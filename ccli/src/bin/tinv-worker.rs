@@ -3,7 +3,6 @@
 // `slots` connections); we spawn a thread per request.
 //
 //   tinv-worker [bind_addr]   (default 0.0.0.0:7878)
-use std::io::Read;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use ccli::{ffmpeg, pool, preset, worker};
