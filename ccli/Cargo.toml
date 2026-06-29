@@ -1,0 +1,20 @@
+[package]
+name = "ccli"
+version = "0.1.0"
+edition = "2021"
+description = "tinv local converter — native Rust orchestrator (wire-compatible TINV3)"
+
+# Binary is named `tinv` to match the product; the crate/folder is `ccli`.
+[[bin]]
+name = "tinv"
+path = "src/main.rs"
+
+[dependencies]
+sha2 = "0.10"
+aes = "0.8"
+ctr = "0.9"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
