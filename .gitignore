@@ -22,6 +22,7 @@ cli/ffmpeg/*.dylib
 
 # Local test media (large source videos kept next to the CLI, never committed)
 cli/*.mp4
+cli-old/*.mp4
 
-# Rust build artifacts (ccli) — keep Cargo.lock, drop the target dir
-ccli/target/
+# Rust build artifacts — keep Cargo.lock, drop the target dir
+cli/target/

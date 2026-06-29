@@ -21,7 +21,7 @@ jobs:
                    player-web/tinv-format.js player-web/sw.js \
                    player-extension/player.js player-extension/player-core.js \
                    player-extension/tinv-format.js player-extension/background.js \
-                   cli/convert.js; do
+                   cli-old/convert.js; do
             node --check "$f"
           done
 

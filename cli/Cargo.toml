@@ -1,11 +1,11 @@
 [package]
-name = "ccli"
+name = "cli"
 version = "0.1.0"
 edition = "2021"
 description = "tinv local converter — native Rust orchestrator (wire-compatible TINV3)"
 
 [lib]
-name = "ccli"
+name = "cli"
 path = "src/lib.rs"
 
 [[bin]]

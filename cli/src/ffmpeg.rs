@@ -1,5 +1,5 @@
 // All ffmpeg/ffprobe interaction: binary resolution, probing, arg building, run.
-// Arg vectors mirror cli/ffmpeg.js so ccli output stays equivalent.
+// Arg vectors mirror cli/ffmpeg.js so cli output stays equivalent.
 
 use std::io::Read;
 use std::path::PathBuf;

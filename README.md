@@ -16,10 +16,11 @@ chapters, compression stats) is embedded, so it's a single file.
 https://tinv.app/?url=https://your-host/lecture.tinv
 ```
 
-**Want to make one?** Convert a video with the CLI:
+**Want to make one?** Build the native CLI and convert a video:
 
 ```bash
-node cli/convert.js lecture.mp4        # → lecture.tinv
+cd cli && cargo build --release        # native Rust CLI (binary: tinv)
+./target/release/tinv lecture.mp4      # → lecture.tinv
 ```
 
 ---
@@ -42,15 +43,17 @@ anything; the file streams and decodes in their browser.
 
 | Folder | What it is |
 |--------|------------|
-| **`cli/`** | Node converter — wraps a bundled ffmpeg (SVT-AV1) to make `.tinv` files. The fast path for large videos. |
+| **`cli/`** | Native **Rust** converter (binary `tinv`) — wraps a bundled ffmpeg (SVT-AV1) to make `.tinv` files, with optional multi-machine distributed encoding. The fast path for large videos. |
+| **`cli-old/`** | Archived original **Node** converter (kept for reference; not maintained). |
 | **`web/`** | The PWA — plays `.tinv` and can convert small videos in-browser (native WebCodecs AV1, Chromium only). Live at **https://tinv.app** |
 | **`extension/`** | Chrome/Edge extension — auto-plays `.tinv` links you click on the web. |
 
 ```
 tinv/
-├── cli/
-│   ├── convert.js          # Node converter (SVT-AV1)
+├── cli/                    # native Rust converter (crate `cli`; binaries tinv + tinv-worker)
+│   ├── src/                # Rust sources
 │   └── ffmpeg/             # bundled ffmpeg + ffprobe (git-ignored)
+├── cli-old/                # archived Node converter (convert.js, SVT-AV1)
 ├── web/             # the PWA (deployed to Vercel)
 │   ├── index.html  app.js  player-core.js  style.css
 │   ├── convert.js          # in-browser encoding (native WebCodecs AV1)
@@ -63,23 +66,27 @@ tinv/
 └── .github/workflows/ci.yml
 ```
 
-> The old Flutter app was removed. Encoding now lives in the Node CLI (large
-> files, native SVT-AV1) and the PWA (small files, in-browser).
+> The old Flutter app was removed. Encoding now lives in the native Rust CLI
+> (large files, SVT-AV1; the original Node converter is archived in `cli-old/`)
+> and the PWA (small files, in-browser).
 
 ---
 
 ## Convert
 
-### Large files — Node CLI (fast, native SVT-AV1)
+### Large files — native Rust CLI (fast, SVT-AV1)
 
 ```bash
-node cli/convert.js input.mp4
-node cli/convert.js input.mp4 -o lecture.tinv --preset screencast
-node cli/convert.js *.mp4 --preset screencast        # batch
+cd cli && cargo build --release    # builds `tinv` (and `tinv-worker`)
+./target/release/tinv input.mp4
+./target/release/tinv input.mp4 -o lecture.tinv --preset screencast
+./target/release/tinv *.mp4 --preset screencast        # batch
 ```
 
 Presets: `screencast`, `talkinghead`, `squeeze`, `near`. ffmpeg lives in
-`cli/ffmpeg/` (git-ignored — see `cli/ffmpeg/README.md`).
+`cli/ffmpeg/` (git-ignored — see `cli/ffmpeg/README.md`). For multi-machine
+distributed encoding, see [`cli/README.md`](cli/README.md). The original Node
+converter is archived at `cli-old/convert.js`.
 
 ### Small files — in the browser
 
@@ -127,5 +134,5 @@ is obfuscation, not DRM (the secret ships in the players).
 
 ---
 
-See [`GUIDE.md`](GUIDE.md) for the full command cheat sheet (setup, convert,
-test, deploy, publish).
+See [`GUIDE.md`](GUIDE.md) for the complete **install & usage guide** (prereqs,
+build, PATH, convert, presets, distributed encoding, troubleshooting).

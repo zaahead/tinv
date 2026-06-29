@@ -1,4 +1,4 @@
-// CLI-owned encode presets. Mirrors cli/ffmpeg.js PRESETS so ccli and the JS
+// CLI-owned encode presets. Mirrors cli/ffmpeg.js PRESETS so cli and the JS
 // converter produce equivalent output. `svt` is the SVT-AV1 preset (0 slowest/
 // smallest … 13 fastest/largest).
 

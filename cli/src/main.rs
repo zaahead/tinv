@@ -15,7 +15,7 @@ mod pipeline;
 use std::io::IsTerminal;
 use std::path::Path;
 
-use ccli::{ffmpeg, pool, preset};
+use cli::{ffmpeg, pool, preset};
 use pipeline::{convert_one, Opts, Progress};
 
 struct Args {
@@ -30,6 +30,12 @@ struct Args {
 }
 
 fn parse_args(argv: &[String], cores: usize) -> Args {
+    // Accept an optional leading `convert` verb: `tinv convert <input...>` and
+    // `tinv <input...>` are equivalent.
+    let argv: &[String] = match argv.first() {
+        Some(v) if v == "convert" => &argv[1..],
+        _ => argv,
+    };
     let mut a = Args {
         inputs: Vec::new(),
         preset: "screencast".into(),
@@ -67,8 +73,8 @@ fn main() {
     let args = parse_args(&argv, cores);
 
     if args.inputs.is_empty() {
-        eprintln!("Usage: tinv <input...> [--preset {}]", preset::names().join("|"));
-        eprintln!("       [--no-cap] [--jobs N] [--segment SEC] [--min-split SEC] [-o out.tinv]");
+        eprintln!("Usage: tinv [convert] <input...> [--preset {}]", preset::names().join("|"));
+        eprintln!("       [--no-cap] [--jobs N] [--segment SEC] [--min-split SEC] [--workers host:port,…] [-o out.tinv]");
         std::process::exit(1);
     }
     let p = match preset::preset(&args.preset) {
@@ -88,7 +94,7 @@ fn main() {
 
     let lp = pool::lp_for(cores, args.jobs);
 
-    use ccli::worker_client;
+    use cli::worker_client;
     let mut worker_slots: Vec<pipeline::WorkerSlot> = Vec::new();
     let mut remote_slot_total = 0usize;
     for raw in &args.workers {
@@ -175,6 +181,19 @@ mod tests {
         assert!(!a.cap1080);
         assert_eq!(a.jobs, 8);
         assert_eq!(a.inputs, vec!["a.mp4", "b.mp4"]);
+    }
+
+    #[test]
+    fn optional_convert_verb() {
+        // `tinv convert r.mp4` == `tinv r.mp4`
+        let a = parse_args(&["convert".into(), "r.mp4".into()], 16);
+        assert_eq!(a.inputs, vec!["r.mp4"]);
+        let a = parse_args(&["convert".into(), "r.mp4".into(), "--preset".into(), "near".into()], 16);
+        assert_eq!(a.inputs, vec!["r.mp4"]);
+        assert_eq!(a.preset, "near");
+        // a file literally named "convert" only after the verb still works
+        let a = parse_args(&["convert".into(), "convert".into()], 16);
+        assert_eq!(a.inputs, vec!["convert"]);
     }
 
     #[test]

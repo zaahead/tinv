@@ -1,4 +1,4 @@
-// cli/ccli-dist-interop.test.js
+// cli/dist-interop.test.js
 // Distributed path: run the coordinator against a loopback tinv-worker and
 // assert the output decodes as valid fMP4 via the web module. Also verify the
 // job survives a worker dying mid-run (local fallback).
@@ -11,16 +11,16 @@ import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 import net from "node:net";
 
-import { runFfmpeg, hasSvtAv1, FFMPEG, FFPROBE } from "./ffmpeg.js";
+import { runFfmpeg, hasSvtAv1, FFMPEG, FFPROBE } from "./test-support.mjs";
 import { decodeTinv } from "../web/tinv-format.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const TINV = join(__dirname, "..", "ccli", "target", "release", "tinv");
-const WORKER = join(__dirname, "..", "ccli", "target", "release", "tinv-worker");
+const TINV = join(__dirname, "target", "release", "tinv");
+const WORKER = join(__dirname, "target", "release", "tinv-worker");
 
 const ffOk = hasSvtAv1();
 const binOk = await Promise.all([access(TINV), access(WORKER)]).then(() => true).catch(() => false);
-const skip = !ffOk ? "ffmpeg/libsvtav1 unavailable" : !binOk ? "ccli binaries not built" : false;
+const skip = !ffOk ? "ffmpeg/libsvtav1 unavailable" : !binOk ? "tinv binaries not built" : false;
 
 function freePort() {
   return new Promise((res) => {
@@ -77,7 +77,7 @@ async function assertPlayable(tinvPath) {
 }
 
 test("distributed encode via loopback worker decodes as valid fMP4", { skip }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), "ccli_dist_"));
+  const dir = await mkdtemp(join(tmpdir(), "tinv_dist_"));
   const port = await freePort();
   const w = startWorker(port);
   try {
@@ -93,7 +93,7 @@ test("distributed encode via loopback worker decodes as valid fMP4", { skip }, a
 });
 
 test("job completes via local fallback when the worker dies mid-run", { skip }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), "ccli_dist_kill_"));
+  const dir = await mkdtemp(join(tmpdir(), "tinv_dist_kill_"));
   const port = await freePort();
   const w = startWorker(port);
   try {

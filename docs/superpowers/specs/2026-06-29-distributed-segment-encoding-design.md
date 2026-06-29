@@ -1,12 +1,12 @@
-# Distributed segment encoding for ccli — design
+# Distributed segment encoding for cli — design
 
 **Date:** 2026-06-29
 **Status:** Approved, pending implementation plan
-**Component:** `ccli` (Rust native converter)
+**Component:** `cli` (Rust native converter)
 
 ## Problem
 
-`ccli` and the JS CLI are both bound by SVT-AV1 software encoding. On the target
+`cli` and the JS CLI are both bound by SVT-AV1 software encoding. On the target
 machine (Apple M3 Max) there is **no hardware AV1 encoder** — only `libsvtav1`/
 `libaom-av1` in software (verified via `ffmpeg -encoders`). With AV1 + in-browser
 MSE playback as hard constraints, a single machine cannot encode faster without
@@ -48,7 +48,7 @@ A segment encode is referentially transparent: `src_NNNN.mkv` + preset →
  concat + mux → TINV3  (local, unchanged)
 ```
 
-### Components (all in the `ccli` crate)
+### Components (all in the `cli` crate)
 
 | Unit | Responsibility | Depends on |
 |---|---|---|
@@ -143,7 +143,7 @@ agnostic; resilience comes from requeue plus a guaranteed-present local backstop
 - **Integration (loopback):** spawn a real `tinv-worker` on `127.0.0.1:<port>`,
   run the coordinator with `--workers 127.0.0.1:<port>` against a generated
   clip, decode the result through `web/tinv-format.js`, assert valid fMP4
-  (extends `cli/ccli-interop.test.js`).
+  (extends `cli/cli-interop.test.js`).
 - **Resilience integration:** two loopback workers; kill one mid-run; assert the
   job still completes and decodes.
 

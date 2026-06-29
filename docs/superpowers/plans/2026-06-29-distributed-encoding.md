@@ -1,8 +1,8 @@
-# ccli Distributed Segment Encoding — Implementation Plan
+# cli Distributed Segment Encoding — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Distribute the parallel segment-encode step of `ccli` across worker machines over HTTP, with retry/requeue resilience and a guaranteed local fallback, keeping output wire-compatible TINV3.
+**Goal:** Distribute the parallel segment-encode step of `cli` across worker machines over HTTP, with retry/requeue resilience and a guaranteed local fallback, keeping output wire-compatible TINV3.
 
 **Architecture:** A segment encode (`src.mkv` + preset → `enc.mp4`) is referentially transparent, so it can run on any machine. A `SegmentEncoder` trait abstracts local-ffmpeg vs remote-HTTP execution. A resilient scheduler runs segments across executors (remote worker slots + local backstop slots), requeueing transient failures and falling back to local. A second binary `tinv-worker` is a stateless HTTP server that runs the same `segment_encode_args` locally. Split, concat, mux, and TINV3 assembly stay on the coordinator, unchanged.
 
@@ -16,40 +16,40 @@
 - `lp` is computed by each executor's host from its own cores; the coordinator never sends `lp` to a worker. `POST /encode` params are `preset` and `cap1080` only.
 - Failure classification: HTTP `4xx` = **Fatal** (abort job); HTTP `5xx`/transport/timeout = **Transient** (requeue). `MAX_REMOTE_ATTEMPTS = 2`, then requeue `local_only`.
 - No auth/TLS in v1; LAN-trusted. Each worker box requires the bundled `ffmpeg`+`libsvtav1`.
-- TDD, frequent commits. Run `cargo test` from `ccli/`. Work happens on branch `feature/ccli-distributed-encoding`.
+- TDD, frequent commits. Run `cargo test` from `cli/`. Work happens on branch `feature/cli-distributed-encoding`.
 
 ## File Structure
 
-- `ccli/Cargo.toml` — add `[lib]`, deps, `[[bin]] tinv-worker`.
-- `ccli/src/lib.rs` (new) — declare all modules `pub`.
-- `ccli/src/main.rs` (modify) — `use ccli::…`; add `--workers`; build executors.
-- `ccli/src/encoder.rs` (new) — `SegmentEncoder` trait, `EncodeErr`, `LocalEncoder`, `RemoteEncoder`.
-- `ccli/src/worker_client.rs` (new) — `capacity()`, `encode()`, pure parsers.
-- `ccli/src/scheduler.rs` (new) — resilient executor scheduler.
-- `ccli/src/worker.rs` (new) — worker request handling (pure param parsing + handler helpers).
-- `ccli/src/bin/tinv-worker.rs` (new) — worker server entry point.
-- `ccli/src/pipeline.rs` (modify) — `encode_chunked` uses the scheduler + executors.
-- `cli/ccli-dist-interop.test.js` (new) — loopback integration + resilience tests.
+- `cli/Cargo.toml` — add `[lib]`, deps, `[[bin]] tinv-worker`.
+- `cli/src/lib.rs` (new) — declare all modules `pub`.
+- `cli/src/main.rs` (modify) — `use cli::…`; add `--workers`; build executors.
+- `cli/src/encoder.rs` (new) — `SegmentEncoder` trait, `EncodeErr`, `LocalEncoder`, `RemoteEncoder`.
+- `cli/src/worker_client.rs` (new) — `capacity()`, `encode()`, pure parsers.
+- `cli/src/scheduler.rs` (new) — resilient executor scheduler.
+- `cli/src/worker.rs` (new) — worker request handling (pure param parsing + handler helpers).
+- `cli/src/bin/tinv-worker.rs` (new) — worker server entry point.
+- `cli/src/pipeline.rs` (modify) — `encode_chunked` uses the scheduler + executors.
+- `cli/cli-dist-interop.test.js` (new) — loopback integration + resilience tests.
 
 ---
 
 ### Task 1: Restructure into a library + add dependencies
 
 **Files:**
-- Create: `ccli/src/lib.rs`
-- Modify: `ccli/src/main.rs:11-17` (module declarations → imports)
-- Modify: `ccli/Cargo.toml`
+- Create: `cli/src/lib.rs`
+- Modify: `cli/src/main.rs:11-17` (module declarations → imports)
+- Modify: `cli/Cargo.toml`
 
 **Interfaces:**
-- Produces: crate library `ccli` exposing `pub mod {preset, ffmpeg, pool, mp4, tinv}` (and, in later tasks, `encoder, worker_client, scheduler, worker`).
+- Produces: crate library `cli` exposing `pub mod {preset, ffmpeg, pool, mp4, tinv}` (and, in later tasks, `encoder, worker_client, scheduler, worker`).
 
-- [ ] **Step 1: Add deps and lib/bin config to `ccli/Cargo.toml`**
+- [ ] **Step 1: Add deps and lib/bin config to `cli/Cargo.toml`**
 
 Replace the `[dependencies]` section and add `[lib]` + the worker bin:
 
 ```toml
 [lib]
-name = "ccli"
+name = "cli"
 path = "src/lib.rs"
 
 [[bin]]
@@ -68,7 +68,7 @@ ureq = "2"
 tiny_http = "0.12"
 ```
 
-- [ ] **Step 2: Create `ccli/src/lib.rs`**
+- [ ] **Step 2: Create `cli/src/lib.rs`**
 
 ```rust
 //! tinv native converter — shared library used by the `tinv` coordinator and
@@ -80,7 +80,7 @@ pub mod preset;
 pub mod tinv;
 ```
 
-- [ ] **Step 3: Update `ccli/src/main.rs` to use the library**
+- [ ] **Step 3: Update `cli/src/main.rs` to use the library**
 
 Replace the module declaration block:
 
@@ -106,31 +106,31 @@ mod pipeline;
 use std::io::IsTerminal;
 use std::path::Path;
 
-use ccli::{ffmpeg, pool, preset};
+use cli::{ffmpeg, pool, preset};
 use pipeline::{convert_one, Opts, Progress};
 ```
 
 - [ ] **Step 4: Make `pipeline.rs` use library modules**
 
-In `ccli/src/pipeline.rs`, change the `use crate::…` imports to `use ccli::…`:
+In `cli/src/pipeline.rs`, change the `use crate::…` imports to `use cli::…`:
 
 ```rust
-use ccli::ffmpeg;
-use ccli::pool;
-use ccli::preset::Preset;
-use ccli::tinv::{self, Meta};
+use cli::ffmpeg;
+use cli::pool;
+use cli::preset::Preset;
+use cli::tinv::{self, Meta};
 ```
 
-(`main.rs` declares `mod pipeline;`, so `pipeline` is part of the `tinv` bin crate and refers to the library as `ccli::…`.)
+(`main.rs` declares `mod pipeline;`, so `pipeline` is part of the `tinv` bin crate and refers to the library as `cli::…`.)
 
 - [ ] **Step 5: Build and test**
 
-Run: `cd ccli && cargo test`
+Run: `cd cli && cargo test`
 Expected: all 18 existing tests PASS; both bins are unknown yet only `tinv` builds (the `tinv-worker` path doesn't exist — see note).
 
 NOTE: `[[bin]] tinv-worker` references a not-yet-created file. To keep this task green, create a stub now:
 
-- [ ] **Step 6: Stub `ccli/src/bin/tinv-worker.rs`**
+- [ ] **Step 6: Stub `cli/src/bin/tinv-worker.rs`**
 
 ```rust
 fn main() {
@@ -139,14 +139,14 @@ fn main() {
 }
 ```
 
-Run: `cd ccli && cargo build && cargo test`
+Run: `cd cli && cargo build && cargo test`
 Expected: builds clean; 18 tests PASS.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add ccli/Cargo.toml ccli/Cargo.lock ccli/src/lib.rs ccli/src/main.rs ccli/src/pipeline.rs ccli/src/bin/tinv-worker.rs
-git commit -m "refactor(ccli): split into library + bins, add http deps"
+git add cli/Cargo.toml cli/Cargo.lock cli/src/lib.rs cli/src/main.rs cli/src/pipeline.rs cli/src/bin/tinv-worker.rs
+git commit -m "refactor(cli): split into library + bins, add http deps"
 ```
 
 ---
@@ -154,8 +154,8 @@ git commit -m "refactor(ccli): split into library + bins, add http deps"
 ### Task 2: SegmentEncoder trait + LocalEncoder
 
 **Files:**
-- Create: `ccli/src/encoder.rs`
-- Modify: `ccli/src/lib.rs` (add `pub mod encoder;`)
+- Create: `cli/src/encoder.rs`
+- Modify: `cli/src/lib.rs` (add `pub mod encoder;`)
 
 **Interfaces:**
 - Produces:
@@ -163,7 +163,7 @@ git commit -m "refactor(ccli): split into library + bins, add http deps"
   - `trait SegmentEncoder: Send + Sync { fn encode(&self, src: &Path, dst: &Path, p: &Preset, cap1080: bool) -> Result<(), EncodeErr>; }`
   - `struct LocalEncoder { pub ffmpeg: String, pub lp: usize }` implementing `SegmentEncoder`.
 
-- [ ] **Step 1: Write the failing test in `ccli/src/encoder.rs`**
+- [ ] **Step 1: Write the failing test in `cli/src/encoder.rs`**
 
 ```rust
 // SegmentEncoder abstracts where a single segment is encoded (local ffmpeg or a
@@ -224,7 +224,7 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Register the module — add to `ccli/src/lib.rs`**
+- [ ] **Step 2: Register the module — add to `cli/src/lib.rs`**
 
 ```rust
 pub mod encoder;
@@ -232,14 +232,14 @@ pub mod encoder;
 
 - [ ] **Step 3: Run test to verify it passes**
 
-Run: `cd ccli && cargo test encoder::`
+Run: `cd cli && cargo test encoder::`
 Expected: `local_encoder_maps_ffmpeg_failure_to_fatal` PASS.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add ccli/src/encoder.rs ccli/src/lib.rs
-git commit -m "feat(ccli): SegmentEncoder trait + LocalEncoder"
+git add cli/src/encoder.rs cli/src/lib.rs
+git commit -m "feat(cli): SegmentEncoder trait + LocalEncoder"
 ```
 
 ---
@@ -247,8 +247,8 @@ git commit -m "feat(ccli): SegmentEncoder trait + LocalEncoder"
 ### Task 3: worker_client — capacity/encode + failure classification
 
 **Files:**
-- Create: `ccli/src/worker_client.rs`
-- Modify: `ccli/src/lib.rs` (add `pub mod worker_client;`)
+- Create: `cli/src/worker_client.rs`
+- Modify: `cli/src/lib.rs` (add `pub mod worker_client;`)
 
 **Interfaces:**
 - Produces:
@@ -257,7 +257,7 @@ git commit -m "feat(ccli): SegmentEncoder trait + LocalEncoder"
   - `fn capacity(base_url: &str) -> Result<Capacity, String>`
   - `fn encode(base_url: &str, preset: &str, cap1080: bool, body: &[u8]) -> Result<Vec<u8>, crate::encoder::EncodeErr>`
 
-- [ ] **Step 1: Write the failing test in `ccli/src/worker_client.rs`**
+- [ ] **Step 1: Write the failing test in `cli/src/worker_client.rs`**
 
 ```rust
 // HTTP client for tinv-worker. Synchronous (ureq). Capacity JSON is our own
@@ -344,7 +344,7 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Register the module — add to `ccli/src/lib.rs`**
+- [ ] **Step 2: Register the module — add to `cli/src/lib.rs`**
 
 ```rust
 pub mod worker_client;
@@ -352,14 +352,14 @@ pub mod worker_client;
 
 - [ ] **Step 3: Run tests**
 
-Run: `cd ccli && cargo test worker_client::`
+Run: `cd cli && cargo test worker_client::`
 Expected: 3 tests PASS.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add ccli/src/worker_client.rs ccli/src/lib.rs
-git commit -m "feat(ccli): worker HTTP client + capacity parsing"
+git add cli/src/worker_client.rs cli/src/lib.rs
+git commit -m "feat(cli): worker HTTP client + capacity parsing"
 ```
 
 ---
@@ -367,13 +367,13 @@ git commit -m "feat(ccli): worker HTTP client + capacity parsing"
 ### Task 4: RemoteEncoder
 
 **Files:**
-- Modify: `ccli/src/encoder.rs` (add `RemoteEncoder`)
+- Modify: `cli/src/encoder.rs` (add `RemoteEncoder`)
 
 **Interfaces:**
 - Consumes: `worker_client::encode`, `EncodeErr`.
 - Produces: `struct RemoteEncoder { pub base_url: String }` implementing `SegmentEncoder`.
 
-- [ ] **Step 1: Write the failing test (append to `ccli/src/encoder.rs` tests module)**
+- [ ] **Step 1: Write the failing test (append to `cli/src/encoder.rs` tests module)**
 
 ```rust
     #[test]
@@ -392,7 +392,7 @@ git commit -m "feat(ccli): worker HTTP client + capacity parsing"
     }
 ```
 
-- [ ] **Step 2: Add `RemoteEncoder` to `ccli/src/encoder.rs`**
+- [ ] **Step 2: Add `RemoteEncoder` to `cli/src/encoder.rs`**
 
 After the `LocalEncoder` impl, add:
 
@@ -415,14 +415,14 @@ impl SegmentEncoder for RemoteEncoder {
 
 - [ ] **Step 3: Run test**
 
-Run: `cd ccli && cargo test encoder::`
+Run: `cd cli && cargo test encoder::`
 Expected: `remote_encoder_unreachable_is_transient` and the local test PASS.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add ccli/src/encoder.rs
-git commit -m "feat(ccli): RemoteEncoder over worker HTTP client"
+git add cli/src/encoder.rs
+git commit -m "feat(cli): RemoteEncoder over worker HTTP client"
 ```
 
 ---
@@ -430,8 +430,8 @@ git commit -m "feat(ccli): RemoteEncoder over worker HTTP client"
 ### Task 5: Resilient scheduler
 
 **Files:**
-- Create: `ccli/src/scheduler.rs`
-- Modify: `ccli/src/lib.rs` (add `pub mod scheduler;`)
+- Create: `cli/src/scheduler.rs`
+- Modify: `cli/src/lib.rs` (add `pub mod scheduler;`)
 
 **Interfaces:**
 - Consumes: `encoder::{SegmentEncoder, EncodeErr}`, `preset::Preset`.
@@ -441,7 +441,7 @@ git commit -m "feat(ccli): RemoteEncoder over worker HTTP client"
   - `struct Job<'a> { pub src: &'a [PathBuf], pub dst: &'a [PathBuf], pub preset: &'a Preset, pub cap1080: bool }`
   - `fn run(job: &Job, executors: Vec<Executor>, on_done: &(dyn Fn(usize, usize) + Sync)) -> Result<(), String>`
 
-- [ ] **Step 1: Write the failing tests in `ccli/src/scheduler.rs`**
+- [ ] **Step 1: Write the failing tests in `cli/src/scheduler.rs`**
 
 ```rust
 // Resilient scheduler: runs segment indices across executors. Remote executors
@@ -631,7 +631,7 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Register the module — add to `ccli/src/lib.rs`**
+- [ ] **Step 2: Register the module — add to `cli/src/lib.rs`**
 
 ```rust
 pub mod scheduler;
@@ -639,14 +639,14 @@ pub mod scheduler;
 
 - [ ] **Step 3: Run tests**
 
-Run: `cd ccli && cargo test scheduler::`
+Run: `cd cli && cargo test scheduler::`
 Expected: 4 tests PASS. (`no_executor_can_finish_returns_error` confirms the run terminates rather than hanging when a lone remote dies.)
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add ccli/src/scheduler.rs ccli/src/lib.rs
-git commit -m "feat(ccli): resilient segment scheduler with local fallback"
+git add cli/src/scheduler.rs cli/src/lib.rs
+git commit -m "feat(cli): resilient segment scheduler with local fallback"
 ```
 
 ---
@@ -654,19 +654,19 @@ git commit -m "feat(ccli): resilient segment scheduler with local fallback"
 ### Task 6: Wire scheduler into the pipeline
 
 **Files:**
-- Modify: `ccli/src/pipeline.rs` (`Opts`, `encode_chunked`)
+- Modify: `cli/src/pipeline.rs` (`Opts`, `encode_chunked`)
 
 **Interfaces:**
 - Consumes: `scheduler::{run, Executor, Job}`, `encoder::{LocalEncoder, RemoteEncoder}`.
 - Produces: `Opts` gains `pub workers: Vec<WorkerSlot>` where `pub struct WorkerSlot { pub base_url: String, pub slots: usize }`. `encode_chunked` builds executors (local `jobs`× + remote slots) and calls `scheduler::run`.
 
-- [ ] **Step 1: Add `WorkerSlot` + field to `Opts` in `ccli/src/pipeline.rs`**
+- [ ] **Step 1: Add `WorkerSlot` + field to `Opts` in `cli/src/pipeline.rs`**
 
 Add near the top (after imports):
 
 ```rust
-use ccli::encoder::{LocalEncoder, RemoteEncoder};
-use ccli::scheduler::{self, Executor, Job};
+use cli::encoder::{LocalEncoder, RemoteEncoder};
+use cli::scheduler::{self, Executor, Job};
 
 #[derive(Clone)]
 pub struct WorkerSlot {
@@ -714,32 +714,32 @@ Find the `pool::run_pool(total, opts.jobs, &abort, |i| { … })?;` block and rep
     scheduler::run(&job, executors, &report)?;
 ```
 
-Remove the now-unused `use ccli::pool;` import only if `pool` is otherwise unused in this file (it is — `run_pool` was the only use). Keep `use ccli::ffmpeg;`.
+Remove the now-unused `use cli::pool;` import only if `pool` is otherwise unused in this file (it is — `run_pool` was the only use). Keep `use cli::ffmpeg;`.
 
 - [ ] **Step 3: Build and run the existing interop test (local-only path unchanged)**
 
-Run: `cd ccli && cargo build`
+Run: `cd cli && cargo build`
 Expected: builds clean.
 
-Run: `cd /Users/zaahead/Documents/GitHub/tinv && cargo build --release --manifest-path ccli/Cargo.toml && node --test cli/ccli-interop.test.js 2>&1 | grep -E '^# (pass|fail)'`
+Run: `cd /Users/zaahead/Documents/GitHub/tinv && cargo build --release --manifest-path cli/Cargo.toml && node --test cli/cli-interop.test.js 2>&1 | grep -E '^# (pass|fail)'`
 Expected: `# pass 2`, `# fail 0` — the local path now runs through the scheduler and still produces playable TINV3.
 
 - [ ] **Step 4: Update `main.rs` to populate the new `Opts.workers` field (empty for now)**
 
-In `ccli/src/main.rs`, in the `Opts { … }` construction, add:
+In `cli/src/main.rs`, in the `Opts { … }` construction, add:
 
 ```rust
             workers: Vec::new(),
 ```
 
-Run: `cd ccli && cargo build`
+Run: `cd cli && cargo build`
 Expected: builds clean.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add ccli/src/pipeline.rs ccli/src/main.rs
-git commit -m "feat(ccli): run segment encode through the resilient scheduler"
+git add cli/src/pipeline.rs cli/src/main.rs
+git commit -m "feat(cli): run segment encode through the resilient scheduler"
 ```
 
 ---
@@ -747,9 +747,9 @@ git commit -m "feat(ccli): run segment encode through the resilient scheduler"
 ### Task 7: tinv-worker server
 
 **Files:**
-- Create: `ccli/src/worker.rs` (pure request helpers)
-- Modify: `ccli/src/lib.rs` (add `pub mod worker;`)
-- Replace: `ccli/src/bin/tinv-worker.rs` (real server)
+- Create: `cli/src/worker.rs` (pure request helpers)
+- Modify: `cli/src/lib.rs` (add `pub mod worker;`)
+- Replace: `cli/src/bin/tinv-worker.rs` (real server)
 
 **Interfaces:**
 - Consumes: `ffmpeg`, `preset`, `pool`.
@@ -757,7 +757,7 @@ git commit -m "feat(ccli): run segment encode through the resilient scheduler"
   - `fn parse_encode_query(url: &str) -> Result<(String, bool), String>` returning `(preset, cap1080)`.
   - `fn capacity_json(cores: usize, slots: usize, svtav1: bool) -> String`.
 
-- [ ] **Step 1: Write the failing tests in `ccli/src/worker.rs`**
+- [ ] **Step 1: Write the failing tests in `cli/src/worker.rs`**
 
 ```rust
 // Pure request helpers for tinv-worker, kept separate from the server loop so
@@ -805,7 +805,7 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Register module — add to `ccli/src/lib.rs`**
+- [ ] **Step 2: Register module — add to `cli/src/lib.rs`**
 
 ```rust
 pub mod worker;
@@ -813,10 +813,10 @@ pub mod worker;
 
 - [ ] **Step 3: Run tests**
 
-Run: `cd ccli && cargo test worker::`
+Run: `cd cli && cargo test worker::`
 Expected: 3 tests PASS.
 
-- [ ] **Step 4: Replace `ccli/src/bin/tinv-worker.rs` with the server**
+- [ ] **Step 4: Replace `cli/src/bin/tinv-worker.rs` with the server**
 
 ```rust
 // tinv-worker — stateless HTTP encode worker. Runs the same segment encode as
@@ -827,7 +827,7 @@ Expected: 3 tests PASS.
 use std::io::Read;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use ccli::{ffmpeg, pool, preset, worker};
+use cli::{ffmpeg, pool, preset, worker};
 use tiny_http::{Method, Response, Server};
 
 fn main() {
@@ -915,14 +915,14 @@ fn main() {
 
 - [ ] **Step 5: Build**
 
-Run: `cd ccli && cargo build --release`
+Run: `cd cli && cargo build --release`
 Expected: both `tinv` and `tinv-worker` build.
 
 - [ ] **Step 6: Smoke-test capacity by hand**
 
 Run:
 ```bash
-./ccli/target/release/tinv-worker 127.0.0.1:7901 & sleep 1
+./cli/target/release/tinv-worker 127.0.0.1:7901 & sleep 1
 curl -s http://127.0.0.1:7901/capacity; echo
 kill %1
 ```
@@ -931,8 +931,8 @@ Expected: a line like `{"cores":N,"slots":4,"svtav1":true}`.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add ccli/src/worker.rs ccli/src/lib.rs ccli/src/bin/tinv-worker.rs
-git commit -m "feat(ccli): tinv-worker http encode server"
+git add cli/src/worker.rs cli/src/lib.rs cli/src/bin/tinv-worker.rs
+git commit -m "feat(cli): tinv-worker http encode server"
 ```
 
 ---
@@ -940,7 +940,7 @@ git commit -m "feat(ccli): tinv-worker http encode server"
 ### Task 8: `--workers` flag on the coordinator
 
 **Files:**
-- Modify: `ccli/src/main.rs` (parse `--workers`, pre-flight `/capacity`, build `WorkerSlot`s, header line)
+- Modify: `cli/src/main.rs` (parse `--workers`, pre-flight `/capacity`, build `WorkerSlot`s, header line)
 
 **Interfaces:**
 - Consumes: `worker_client::capacity`, `pipeline::WorkerSlot`.
@@ -948,7 +948,7 @@ git commit -m "feat(ccli): tinv-worker http encode server"
 
 - [ ] **Step 1: Add `workers` to the `Args` struct and parse it**
 
-In `ccli/src/main.rs`, add to `struct Args`:
+In `cli/src/main.rs`, add to `struct Args`:
 
 ```rust
     workers: Vec<String>,
@@ -971,7 +971,7 @@ Add a match arm (before the catch-all `other =>`):
 After computing `lp` and before the header `println!`, add:
 
 ```rust
-    use ccli::worker_client;
+    use cli::worker_client;
     let mut worker_slots: Vec<pipeline::WorkerSlot> = Vec::new();
     let mut remote_slot_total = 0usize;
     for raw in &args.workers {
@@ -1013,14 +1013,14 @@ Change the `Opts { … workers: Vec::new(), … }` line (from Task 6 Step 4) to:
 
 - [ ] **Step 5: Build**
 
-Run: `cd ccli && cargo build --release`
+Run: `cd cli && cargo build --release`
 Expected: builds clean.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add ccli/src/main.rs
-git commit -m "feat(ccli): --workers flag with capacity pre-flight"
+git add cli/src/main.rs
+git commit -m "feat(cli): --workers flag with capacity pre-flight"
 ```
 
 ---
@@ -1028,15 +1028,15 @@ git commit -m "feat(ccli): --workers flag with capacity pre-flight"
 ### Task 9: Loopback integration + resilience tests
 
 **Files:**
-- Create: `cli/ccli-dist-interop.test.js`
+- Create: `cli/cli-dist-interop.test.js`
 
 **Interfaces:**
-- Consumes: built `ccli/target/release/{tinv,tinv-worker}`, `web/tinv-format.js` `decodeTinv`, `cli/ffmpeg.js` `{runFfmpeg, hasSvtAv1, FFMPEG, FFPROBE}`.
+- Consumes: built `cli/target/release/{tinv,tinv-worker}`, `web/tinv-format.js` `decodeTinv`, `cli/ffmpeg.js` `{runFfmpeg, hasSvtAv1, FFMPEG, FFPROBE}`.
 
-- [ ] **Step 1: Write the integration test `cli/ccli-dist-interop.test.js`**
+- [ ] **Step 1: Write the integration test `cli/cli-dist-interop.test.js`**
 
 ```javascript
-// cli/ccli-dist-interop.test.js
+// cli/cli-dist-interop.test.js
 // Distributed path: run the coordinator against a loopback tinv-worker and
 // assert the output decodes as valid fMP4 via the web module. Also verify the
 // job survives a worker dying mid-run (local fallback).
@@ -1053,12 +1053,12 @@ import { runFfmpeg, hasSvtAv1, FFMPEG, FFPROBE } from "./ffmpeg.js";
 import { decodeTinv } from "../web/tinv-format.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const TINV = join(__dirname, "..", "ccli", "target", "release", "tinv");
-const WORKER = join(__dirname, "..", "ccli", "target", "release", "tinv-worker");
+const TINV = join(__dirname, "..", "cli", "target", "release", "tinv");
+const WORKER = join(__dirname, "..", "cli", "target", "release", "tinv-worker");
 
 const ffOk = hasSvtAv1();
 const binOk = await Promise.all([access(TINV), access(WORKER)]).then(() => true).catch(() => false);
-const skip = !ffOk ? "ffmpeg/libsvtav1 unavailable" : !binOk ? "ccli binaries not built" : false;
+const skip = !ffOk ? "ffmpeg/libsvtav1 unavailable" : !binOk ? "cli binaries not built" : false;
 
 function freePort() {
   return new Promise((res) => {
@@ -1115,7 +1115,7 @@ async function assertPlayable(tinvPath) {
 }
 
 test("distributed encode via loopback worker decodes as valid fMP4", { skip }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), "ccli_dist_"));
+  const dir = await mkdtemp(join(tmpdir(), "cli_dist_"));
   const port = await freePort();
   const w = startWorker(port);
   try {
@@ -1131,7 +1131,7 @@ test("distributed encode via loopback worker decodes as valid fMP4", { skip }, a
 });
 
 test("job completes via local fallback when the worker dies mid-run", { skip }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), "ccli_dist_kill_"));
+  const dir = await mkdtemp(join(tmpdir(), "cli_dist_kill_"));
   const port = await freePort();
   const w = startWorker(port);
   try {
@@ -1158,8 +1158,8 @@ test("job completes via local fallback when the worker dies mid-run", { skip }, 
 Run:
 ```bash
 cd /Users/zaahead/Documents/GitHub/tinv
-cargo build --release --manifest-path ccli/Cargo.toml
-node --test cli/ccli-dist-interop.test.js 2>&1 | grep -E '^(ok|not ok|# (tests|pass|fail|skipped))'
+cargo build --release --manifest-path cli/Cargo.toml
+node --test cli/cli-dist-interop.test.js 2>&1 | grep -E '^(ok|not ok|# (tests|pass|fail|skipped))'
 ```
 Expected: `ok 1 …`, `ok 2 …`, `# pass 2`, `# fail 0`.
 
@@ -1168,8 +1168,8 @@ Expected: `ok 1 …`, `ok 2 …`, `# pass 2`, `# fail 0`.
 Run:
 ```bash
 cd /Users/zaahead/Documents/GitHub/tinv
-(cd ccli && cargo test 2>&1 | grep 'test result')
-for f in cli/pool.test.js cli/pipeline.test.js cli/ffmpeg.test.js cli/interop.test.js cli/ccli-interop.test.js cli/ccli-dist-interop.test.js; do
+(cd cli && cargo test 2>&1 | grep 'test result')
+for f in cli/pool.test.js cli/pipeline.test.js cli/ffmpeg.test.js cli/interop.test.js cli/cli-interop.test.js cli/cli-dist-interop.test.js; do
   printf "%-26s " "$(basename $f)"; node --test "$f" 2>&1 | grep -E '^# (pass|fail)' | tr '\n' ' '; echo
 done
 ```
@@ -1178,8 +1178,8 @@ Expected: Rust `test result: ok`; every JS file `# pass N # fail 0`.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add cli/ccli-dist-interop.test.js
-git commit -m "test(ccli): loopback distributed encode + worker-death resilience"
+git add cli/cli-dist-interop.test.js
+git commit -m "test(cli): loopback distributed encode + worker-death resilience"
 ```
 
 ---
@@ -1187,9 +1187,9 @@ git commit -m "test(ccli): loopback distributed encode + worker-death resilience
 ### Task 10: Documentation
 
 **Files:**
-- Modify: `ccli/README.md` (distributed usage + worker section)
+- Modify: `cli/README.md` (distributed usage + worker section)
 
-- [ ] **Step 1: Append a "Distributed encoding" section to `ccli/README.md`**
+- [ ] **Step 1: Append a "Distributed encoding" section to `cli/README.md`**
 
 ```markdown
 ## Distributed encoding (multi-machine)
@@ -1222,8 +1222,8 @@ runs ffmpeg on whatever bytes it is sent; do not expose it to the open internet.
 - [ ] **Step 2: Commit**
 
 ```bash
-git add ccli/README.md
-git commit -m "docs(ccli): distributed encoding usage"
+git add cli/README.md
+git commit -m "docs(cli): distributed encoding usage"
 ```
 
 ---

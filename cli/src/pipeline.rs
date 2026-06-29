@@ -4,11 +4,11 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use ccli::encoder::{LocalEncoder, RemoteEncoder};
-use ccli::ffmpeg;
-use ccli::preset::Preset;
-use ccli::scheduler::{self, Executor, Job};
-use ccli::tinv::{self, Meta};
+use cli::encoder::{LocalEncoder, RemoteEncoder};
+use cli::ffmpeg;
+use cli::preset::Preset;
+use cli::scheduler::{self, Executor, Job};
+use cli::tinv::{self, Meta};
 
 #[derive(Clone)]
 pub struct WorkerSlot {

@@ -1,6 +1,6 @@
 # Bundled ffmpeg (for the CLI converter)
 
-The Node converter (`cli/convert.js`) uses these two static binaries:
+The `tinv` converter uses these two static binaries:
 
 ```
 cli/ffmpeg/ffmpeg

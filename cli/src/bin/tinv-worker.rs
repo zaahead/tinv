@@ -5,7 +5,7 @@
 //   tinv-worker [bind_addr]   (default 0.0.0.0:7878)
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use ccli::{ffmpeg, pool, preset, worker};
+use cli::{ffmpeg, pool, preset, worker};
 use tiny_http::{Method, Response, Server};
 
 fn main() {
