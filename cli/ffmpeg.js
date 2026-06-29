@@ -65,10 +65,15 @@ function videoFilter(p, cap1080) {
   return vf.join(",");
 }
 
-function videoCodec(p) {
+// `lp` (SVT-AV1 level-of-parallelism) bounds the encoder's thread count so that
+// parallel segment encodes don't each grab every core. Omit it (0/undefined) on
+// the whole-file path, where a single encode should use the whole machine.
+function videoCodec(p, lp) {
+  const params = ["tune=0"];
+  if (lp > 0) params.push(`lp=${lp}`);
   return [
     "-c:v", "libsvtav1", "-crf", String(p.crf), "-preset", String(p.svt),
-    "-g", String(gopFor(p.fps)), "-svtav1-params", "tune=0",
+    "-g", String(gopFor(p.fps)), "-svtav1-params", params.join(":"),
   ];
 }
 
@@ -96,10 +101,11 @@ export function splitArgs(src, dstPattern, segLen) {
 }
 
 // Encode one source segment to AV1 video-only, plain mp4 (fragmented later).
-export function segmentEncodeArgs(src, dst, p, cap1080) {
+// `lp` caps this encode's threads so N parallel segments share the cores.
+export function segmentEncodeArgs(src, dst, p, cap1080, lp) {
   return [
     "-y", "-i", src,
-    ...videoCodec(p),
+    ...videoCodec(p, lp),
     "-vf", videoFilter(p, cap1080),
     "-an", "-f", "mp4", dst,
   ];
@@ -124,17 +130,27 @@ export function muxFragmentArgs(videoPath, audioPath, dst) {
 export function runFfmpeg(args, { signal } = {}) {
   return new Promise((resolve, reject) => {
     const proc = spawn(FFMPEG, args);
+    let aborted = false;
     if (signal) {
       if (signal.aborted) {
+        aborted = true;
         proc.kill("SIGTERM");
       } else {
-        signal.addEventListener("abort", () => proc.kill("SIGTERM"), { once: true });
+        signal.addEventListener("abort", () => { aborted = true; proc.kill("SIGTERM"); }, { once: true });
       }
     }
-    proc.stderr.on("data", () => {});
+    // Keep a rolling tail of stderr so a failure is diagnosable instead of
+    // silent. ffmpeg writes progress + errors here; we surface it only on error.
+    let tail = "";
+    proc.stderr.on("data", (d) => {
+      tail = (tail + d.toString()).slice(-2000);
+    });
     proc.on("error", reject);
     proc.on("exit", (code) => {
-      code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}: ${args.join(" ")}`));
+      if (code === 0) return resolve();
+      if (aborted) return reject(new Error("ffmpeg aborted"));
+      const last = tail.trim().split("\n").slice(-3).join(" | ");
+      reject(new Error(`ffmpeg exited ${code}: ${last || args.join(" ")}`));
     });
   });
 }

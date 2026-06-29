@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { makeSemaphore, runPool } from "./pool.js";
+import { makeSemaphore, runPool, defaultJobs, lpFor } from "./pool.js";
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -29,4 +29,20 @@ test("runPool rejects on a task error", async () => {
     async () => 3,
   ];
   await assert.rejects(() => runPool(tasks, 2), /boom/);
+});
+
+test("defaultJobs caps at 4 so parallel encodes don't oversubscribe", () => {
+  assert.equal(defaultJobs(16), 4);
+  assert.equal(defaultJobs(8), 4);
+  assert.equal(defaultJobs(2), 2);
+  assert.equal(defaultJobs(1), 1);
+  assert.equal(defaultJobs(0), 1);
+});
+
+test("lpFor splits cores across jobs so jobs*lp ~= cores, floored at 1", () => {
+  assert.equal(lpFor(16, 4), 4);
+  assert.equal(lpFor(16, 16), 1); // explicit --jobs 16 stays at one thread each
+  assert.equal(lpFor(12, 4), 3);
+  assert.equal(lpFor(8, 3), 2);
+  assert.equal(lpFor(4, 8), 1); // more jobs than cores still floors at 1
 });

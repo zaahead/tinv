@@ -9,7 +9,10 @@ app and extension can play.
 
 Options:
 - `--preset screencast|talkinghead|squeeze|near` (default: screencast)
-- `--jobs N` — max concurrent encodes (default: logical CPU count)
+- `--jobs N` — max concurrent encodes (default: min(4, logical CPUs)). Each
+  encode's SVT-AV1 thread count (`lp`) is set to ≈ cores / jobs, so total
+  encoder threads track the core count at any `--jobs` value instead of every
+  encode grabbing all cores (which oversubscribes and thrashes).
 - `--segment SEC` — target segment length when chunking (default: 30)
 - `--min-split SEC` — only split files at least this long (default: 60)
 - `--no-cap` — do not cap height to 1080

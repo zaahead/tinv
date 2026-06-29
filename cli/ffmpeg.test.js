@@ -41,6 +41,18 @@ test("segmentEncodeArgs encodes video-only AV1 (no fragment, no audio)", () => {
   assert.ok(!a.includes("+frag_keyframe+empty_moov+default_base_moof"));
 });
 
+test("segmentEncodeArgs bounds SVT-AV1 threads via lp when given", () => {
+  const a = segmentEncodeArgs("seg.mkv", "enc.mp4", PRESETS.talkinghead, true, 4);
+  const params = a.at(a.indexOf("-svtav1-params") + 1);
+  assert.match(params, /(^|:)lp=4(:|$)/);
+});
+
+test("wholeFileArgs leaves SVT-AV1 thread count on auto (no lp)", () => {
+  const a = wholeFileArgs("in.mp4", "out.mp4", PRESETS.screencast, true, false);
+  const params = a.at(a.indexOf("-svtav1-params") + 1);
+  assert.ok(!/lp=/.test(params), `whole-file encode should not pin lp, got "${params}"`);
+});
+
 test("concatArgs copy-concats a concat list", () => {
   assert.deepEqual(concatArgs("list.txt", "video.mp4"), [
     "-y", "-f", "concat", "-safe", "0", "-i", "list.txt",
