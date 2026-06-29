@@ -64,3 +64,29 @@ node --test cli/ccli-interop.test.js   # end-to-end: encode, decode via web modu
 
 The interop test is the wire-compatibility guarantee: it runs the built binary
 and decodes the result with `web/tinv-format.js`, asserting valid fragmented MP4.
+
+## Distributed encoding (multi-machine)
+
+The encode is the bottleneck and segments are independent, so they can be
+farmed out to worker machines for near-linear speedup at identical output.
+
+On each worker (needs the bundled ffmpeg+SVT-AV1, or `TINV_FFMPEG` set):
+
+```sh
+tinv-worker 0.0.0.0:7878
+```
+
+On the coordinator:
+
+```sh
+tinv big.mp4 --workers 10.0.0.5:7878,10.0.0.6:7878
+```
+
+The coordinator pre-flights each worker's `/capacity`, sizes remote slots from
+the worker's own core count, and schedules segments across remote slots plus
+local backstop slots (`--jobs`). A worker that fails or dies mid-run has its
+segments retried elsewhere and ultimately encoded locally, so a single flaky
+worker never fails the job.
+
+**Security:** no auth/TLS in v1 — run workers on a trusted LAN only. A worker
+runs ffmpeg on whatever bytes it is sent; do not expose it to the open internet.
