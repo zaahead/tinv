@@ -58,12 +58,14 @@ bundled binary must include `libsvtav1`.
 ## Tests
 
 ```sh
-cd ccli && cargo test          # 18 unit tests (crypto, mp4, pool, args, presets)
-node --test cli/ccli-interop.test.js   # end-to-end: encode, decode via web module
+cd ccli && cargo test          # 31 unit tests (crypto, mp4, pool, scheduler, encoder, worker, args, presets)
+node --test cli/ccli-interop.test.js        # end-to-end: local encode, decode via web module
+node --test cli/ccli-dist-interop.test.js   # end-to-end: distributed encode + worker-death resilience
 ```
 
-The interop test is the wire-compatibility guarantee: it runs the built binary
-and decodes the result with `web/tinv-format.js`, asserting valid fragmented MP4.
+The interop tests are the wire-compatibility guarantee: they run the built
+binaries and decode the result with `web/tinv-format.js`, asserting valid
+fragmented MP4 — for both the local and distributed (multi-worker) paths.
 
 ## Distributed encoding (multi-machine)
 
