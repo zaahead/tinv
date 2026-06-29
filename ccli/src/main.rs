@@ -112,6 +112,7 @@ fn main() {
             lp,
             ffmpeg: ffmpeg_bin.clone(),
             ffprobe: ffprobe_bin.clone(),
+            workers: Vec::new(),
         };
         let progress = Progress { name: name.clone(), inline };
         match convert_one(src, &dst, p, &opts, &progress) {

@@ -4,10 +4,17 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+use ccli::encoder::{LocalEncoder, RemoteEncoder};
 use ccli::ffmpeg;
-use ccli::pool;
 use ccli::preset::Preset;
+use ccli::scheduler::{self, Executor, Job};
 use ccli::tinv::{self, Meta};
+
+#[derive(Clone)]
+pub struct WorkerSlot {
+    pub base_url: String,
+    pub slots: usize,
+}
 
 pub struct Opts {
     pub cap1080: bool,
@@ -17,6 +24,7 @@ pub struct Opts {
     pub lp: usize,
     pub ffmpeg: String,
     pub ffprobe: String,
+    pub workers: Vec<WorkerSlot>,
 }
 
 /// Per-file progress printer. Inline mode (single file on a TTY) updates one
@@ -136,24 +144,32 @@ fn encode_chunked(
     let total = src_segs.len();
     progress.split(total);
 
-    // 2. Encode each segment to AV1 video-only, in parallel, reporting each
-    //    completion so a long run is visibly making progress.
+    // 2. Encode each segment to AV1 video-only across local + remote executors.
     let enc_segs: Vec<PathBuf> = (0..total).map(|i| work.join(format!("enc_{:04}.mp4", i))).collect();
-    let done = AtomicUsize::new(0);
-    let abort = AtomicBool::new(false);
-    pool::run_pool(total, opts.jobs, &abort, |i| {
-        let args = ffmpeg::segment_encode_args(
-            &src_segs[i].to_string_lossy(),
-            &enc_segs[i].to_string_lossy(),
-            p,
-            opts.cap1080,
-            opts.lp,
-        );
-        ffmpeg::run_ffmpeg(ff, &args, &abort)?;
-        let n = done.fetch_add(1, Ordering::Relaxed) + 1;
+
+    let mut executors: Vec<Executor> = Vec::new();
+    for _ in 0..opts.jobs {
+        executors.push(Executor {
+            is_local: true,
+            encoder: Box::new(LocalEncoder { ffmpeg: opts.ffmpeg.clone(), lp: opts.lp }),
+        });
+    }
+    for w in &opts.workers {
+        for _ in 0..w.slots {
+            executors.push(Executor {
+                is_local: false,
+                encoder: Box::new(RemoteEncoder { base_url: w.base_url.clone() }),
+            });
+        }
+    }
+
+    let done = std::sync::atomic::AtomicUsize::new(0);
+    let job = Job { src: &src_segs, dst: &enc_segs, preset: p, cap1080: opts.cap1080 };
+    let report = |_d: usize, _t: usize| {
+        let n = done.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
         progress.segment(n, total);
-        Ok(())
-    })?;
+    };
+    scheduler::run(&job, executors, &report)?;
 
     // 3. Concat-copy the encoded video segments.
     progress.concat();
